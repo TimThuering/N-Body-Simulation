@@ -25,13 +25,18 @@ void InputParser::parse_input(std::string &path) {
         std::array<double, 3> velocity{{getDoubleScientific(tokens[7]),
                                         getDoubleScientific(tokens[8]),
                                         getDoubleScientific(tokens[9])}};
+        // create the body
+        struct Body body;
+        body.id = std::stol(tokens[0]);
+        body.name = tokens[1];
+        body.body_class = tokens[2];
+        body.mass = getDoubleScientific(tokens[3]);
+        body.position = position;
+        body.velocity = velocity;
 
-        Body body(std::stol(tokens[0]),
-                  tokens[1],
-                  tokens[2],
-                  getDoubleScientific(tokens[3]), position, velocity);
 
         allBodies.push_back(body);
+        std::cout << allBodies.size() << std::endl;
     }
 }
 

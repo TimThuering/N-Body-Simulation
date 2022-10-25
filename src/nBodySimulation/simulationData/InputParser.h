@@ -21,7 +21,6 @@ public:
      */
     static void parse_input(std::string &path);
 
-//private:
     /*
      * This helper function splits a string into tokens. It uses "," as the delimiter. This function is by the parse_input
      * function for splitting one line of the CSV-file into tokens.
