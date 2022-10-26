@@ -61,13 +61,7 @@ std::vector<std::string> InputParser::splitString(std::string string) {
 
 double InputParser::getDoubleScientific(const std::string &string) {
     std::stringstream scientificNotation(string);
-    double significant;
-    int exponent;
-    std::string base;
-
-    // extract the significant and exponent. Base is assumed to be 10.
-    scientificNotation >> significant >> base >> exponent;
-
-    // calculate the result
-    return significant * pow(10, exponent);
+    double doubleFromSci;
+    scientificNotation >> doubleFromSci;
+    return doubleFromSci;
 }

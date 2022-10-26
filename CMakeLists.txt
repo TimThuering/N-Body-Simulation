@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.8)
 set(CMAKE_CXX_COMPILER "clang++")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl-targets=nvptx64-nvidia-cuda")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-limit-debug-info")
 
 project(N_Body_Simulation)
 include_directories(src/simulationData)
@@ -40,5 +41,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(cxxopts)
 add_dependencies(N_Body_Simulation cxxopts)
 target_include_directories(N_Body_Simulation PUBLIC ${cxxopts_SOURCE_DIR}/include)
+
 
 
