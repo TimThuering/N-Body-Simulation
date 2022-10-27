@@ -1,6 +1,7 @@
-#ifndef N_BODY_SIMULATION_INPUTPARSER_H
-#define N_BODY_SIMULATION_INPUTPARSER_H
+#ifndef N_BODY_SIMULATION_INPUTPARSER_HPP
+#define N_BODY_SIMULATION_INPUTPARSER_HPP
 
+#include "SimulationData.hpp"
 #include <string>
 #include <array>
 #include <vector>
@@ -19,24 +20,16 @@ public:
      * The first line of the file will be ignored. The data is expected to begin at the second line.
      *
      */
-    static void parse_input(std::string &path);
+    static void parse_input(std::string &path, SimulationData &simulationData);
 
     /*
-     * This helper function splits a string into tokens. It uses "," as the delimiter. This function is by the parse_input
-     * function for splitting one line of the CSV-file into tokens.
+     * This helper function splits a string into tokens. It uses "," as the delimiter. This function is used by the
+     * parse_input function for splitting one line of the CSV-file into tokens.
      *
      * It returns a vector of strings, where each entry represents one token.
      */
     static std::vector<std::string> splitString(std::string string);
-
-    /*
-     * This helper function converts a string with a number written in scientific notation into a double.
-     * E.g.: "1e+2" will result into 100
-     *
-     * The function enables parse_input to parse CSV-files containing data written in scientific notation.
-     */
-    static double getDoubleScientific(const std::string &string);
 };
 
 
-#endif //N_BODY_SIMULATION_INPUTPARSER_H
+#endif //N_BODY_SIMULATION_INPUTPARSER_HPP

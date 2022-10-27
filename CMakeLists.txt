@@ -12,8 +12,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_executable(N_Body_Simulation
         src/main.cpp
-        src/simulationData/Body.cpp
-        src/simulationData/InputParser.cpp)
+        src/simulationData/InputParser.cpp src/simulationBackend/SimulationInstance.cpp src/simulationBackend/SimulationInstance.hpp src/simulationBackend/nBodyAlgorithm.hpp)
 
 include(FetchContent)
 FetchContent_Declare(

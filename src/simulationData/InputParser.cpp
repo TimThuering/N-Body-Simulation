@@ -1,12 +1,10 @@
-#include "InputParser.h"
-#include "Body.h"
+#include "InputParser.hpp"
+#include "SimulationData.hpp"
 
 #include <fstream>
 #include <iostream>
-#include <sstream>
-#include <cmath>
 
-void InputParser::parse_input(std::string &path) {
+void InputParser::parse_input(std::string &path, SimulationData &simulationData) {
     std::ifstream fileInputStream(path);
     std::string dataString;
 
@@ -18,25 +16,18 @@ void InputParser::parse_input(std::string &path) {
         // split the line into tokens
         auto tokens = InputParser::splitString(dataString);
 
-        std::array<double, 3> position{{getDoubleScientific(tokens[4]),
-                                        getDoubleScientific(tokens[5]),
-                                        getDoubleScientific(tokens[6])}};
+        // store all the body data in the simulationData struct
+        simulationData.names.push_back(tokens[1]);
+        simulationData.body_classes.push_back(tokens[2]);
+        simulationData.mass.push_back(std::stod(tokens[3]));
 
-        std::array<double, 3> velocity{{getDoubleScientific(tokens[7]),
-                                        getDoubleScientific(tokens[8]),
-                                        getDoubleScientific(tokens[9])}};
-        // create the body
-        struct Body body;
-        body.id = std::stol(tokens[0]);
-        body.name = tokens[1];
-        body.body_class = tokens[2];
-        body.mass = getDoubleScientific(tokens[3]);
-        body.position = position;
-        body.velocity = velocity;
+        simulationData.positions_x.push_back(std::stod(tokens[4]));
+        simulationData.positions_y.push_back(std::stod(tokens[5]));
+        simulationData.positions_z.push_back(std::stod(tokens[6]));
 
-
-        allBodies.push_back(body);
-        std::cout << allBodies.size() << std::endl;
+        simulationData.velocities_x.push_back(std::stod(tokens[7]));
+        simulationData.velocities_y.push_back(std::stod(tokens[8]));
+        simulationData.velocities_z.push_back(std::stod(tokens[9]));
     }
 }
 
@@ -57,11 +48,4 @@ std::vector<std::string> InputParser::splitString(std::string string) {
     result.push_back(string.substr(lastSplit, (string.size()) - lastSplit));
 
     return result;
-}
-
-double InputParser::getDoubleScientific(const std::string &string) {
-    std::stringstream scientificNotation(string);
-    double doubleFromSci;
-    scientificNotation >> doubleFromSci;
-    return doubleFromSci;
 }
