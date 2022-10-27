@@ -1,0 +1,10 @@
+#ifndef N_BODY_SIMULATION_SIMULATIONINSTANCE_HPP
+#define N_BODY_SIMULATION_SIMULATIONINSTANCE_HPP
+
+#include "nBodyAlgorithm.hpp"
+
+class SimulationInstance {
+
+};
+
+#endif //N_BODY_SIMULATION_SIMULATIONINSTANCE_HPP
