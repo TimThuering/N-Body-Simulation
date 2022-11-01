@@ -1,5 +1,6 @@
 #include "SimulationData.hpp"
 #include "InputParser.hpp"
+#include "NaiveAlgorithm.hpp"
 #include <cxxopts.hpp>
 
 int main(int argc, char *argv[]) {
@@ -15,7 +16,13 @@ int main(int argc, char *argv[]) {
     // Storage for simulation the data
     SimulationData simulationData;
 
+    NaiveAlgorithm algorithm;
+
     // parse the csv file containing the simulation data
     InputParser::parse_input(path,simulationData);
+
+    algorithm.startSimulation(simulationData);
+    algorithm.generateParaViewOutput(simulationData);
     std::cout << simulationData.mass.back() << std::endl;
+
 }

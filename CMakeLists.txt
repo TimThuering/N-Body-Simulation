@@ -7,12 +7,15 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-limit-debug-info")
 
 project(N_Body_Simulation)
 include_directories(src/simulationData)
+include_directories(src/simulationBackend)
 set(CMAKE_CXX_STANDARD 17)
 
 
 add_executable(N_Body_Simulation
         src/main.cpp
-        src/simulationData/InputParser.cpp src/simulationBackend/SimulationInstance.cpp src/simulationBackend/SimulationInstance.hpp src/simulationBackend/nBodyAlgorithm.hpp)
+        src/simulationData/InputParser.cpp
+        src/simulationBackend/NaiveAlgorithm.cpp
+        src/simulationBackend/nBodyAlgorithm.cpp)
 
 include(FetchContent)
 FetchContent_Declare(
