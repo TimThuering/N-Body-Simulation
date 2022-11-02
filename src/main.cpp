@@ -23,6 +23,4 @@ int main(int argc, char *argv[]) {
 
     algorithm.startSimulation(simulationData);
     algorithm.generateParaViewOutput(simulationData);
-    std::cout << simulationData.mass.back() << std::endl;
-
 }
