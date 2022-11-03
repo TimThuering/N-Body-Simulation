@@ -8,6 +8,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-limit-debug-info")
 project(N_Body_Simulation)
 include_directories(src/simulationData)
 include_directories(src/simulationBackend)
+include_directories(src/utility)
 set(CMAKE_CXX_STANDARD 17)
 
 
@@ -15,7 +16,8 @@ add_executable(N_Body_Simulation
         src/main.cpp
         src/simulationData/InputParser.cpp
         src/simulationBackend/NaiveAlgorithm.cpp
-        src/simulationBackend/nBodyAlgorithm.cpp)
+        src/simulationBackend/nBodyAlgorithm.cpp
+        src/utility/TimeConverter.cpp)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -28,7 +30,9 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(InputParserTest
         tests/InputParserTest.cpp
-        src/simulationData/InputParser.cpp)
+        src/simulationData/InputParser.cpp
+        tests/TimeConverterTest.cpp
+        src/utility/TimeConverter.cpp)
 
 enable_testing()
 include(GoogleTest)

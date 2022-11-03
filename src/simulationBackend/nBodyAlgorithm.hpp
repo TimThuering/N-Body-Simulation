@@ -14,6 +14,13 @@ class nBodyAlgorithm {
 public:
     std::string description; // The name of the algorithm
 
+    std::string outputDirectory;
+    double dt; // delta t determines the step width used for the simulation
+    double t_end; // determines when the simulation will stop
+    double visualizationStepWidth; // determines the step width used for the visualization (i.e. the ParaView output)
+    std::size_t numberOfBodies;
+
+
     // maps simulation step to computed position values
     std::map<std::size_t, std::vector<double>> positions_x;
     std::map<std::size_t, std::vector<double>> positions_y;
@@ -32,6 +39,14 @@ public:
     std::map<std::size_t, std::vector<double>> totalEnergy;
     std::map<std::size_t, std::vector<double>> virialEquilibrium;
 
+    nBodyAlgorithm(double dt, double t_end, double visualizationStepWidth, std::string &outputDirectory,
+                   std::size_t numberOfBodies) {
+        this->dt = dt;
+        this->t_end = t_end;
+        this->visualizationStepWidth = visualizationStepWidth;
+        this->outputDirectory = outputDirectory;
+        this->numberOfBodies = numberOfBodies;
+    }
 
     /*
     * Function that starts the actual computation of the n-body simulation

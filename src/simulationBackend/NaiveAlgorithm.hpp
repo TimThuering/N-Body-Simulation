@@ -6,7 +6,7 @@
 
 class NaiveAlgorithm : public nBodyAlgorithm {
 public:
-    NaiveAlgorithm();
+    NaiveAlgorithm(double dt, double tEnd, double visualizationStepWidth, std::string &outputDirectory, std::size_t numberOfBodies);
 
     /*
      * Computes an n-body simulation with the naive algorithm

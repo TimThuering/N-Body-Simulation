@@ -13,8 +13,7 @@ void nBodyAlgorithm::generateParaViewOutput(const SimulationData &simulationData
     std::replace(time.begin(), time.end(), ' ', '_');
     time = time.substr(0, time.size() - 1);
 
-    std::string filePathBase =
-            "N-Body-Simulation/output/" + time + '/';
+    std::string filePathBase = outputDirectory + '/' + time + '/';
 
     // create the directory for the output files
     std::filesystem::create_directory(filePathBase);
@@ -36,7 +35,8 @@ void nBodyAlgorithm::generateParaViewOutput(const SimulationData &simulationData
 
         // add a reference of the .vtp file to the .pvd file
         pvdFile << "<DataSet timestep=\"" << i << "\" "
-                << R"(group="" part="0" file=")" << time.append("/" + vtpFileName) << "\"/>";
+//                << R"(group="" part="0" file=")" << time.append("/" + vtpFileName) << "\"/>";
+                << R"(group="" part="0" file=")" << vtpFileName << "\"/>";
 
         // write to the file
         writeFileHeader(i, vtpFile);
