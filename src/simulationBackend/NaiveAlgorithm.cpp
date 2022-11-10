@@ -12,6 +12,5 @@ NaiveAlgorithm::NaiveAlgorithm(double dt, double tEnd, double visualizationStepW
 }
 
 void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
-
+    
 }
-

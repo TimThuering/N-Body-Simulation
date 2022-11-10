@@ -36,7 +36,7 @@ void nBodyAlgorithm::generateParaViewOutput(const SimulationData &simulationData
         // add a reference of the .vtp file to the .pvd file
         pvdFile << "<DataSet timestep=\"" << i << "\" "
 //                << R"(group="" part="0" file=")" << time.append("/" + vtpFileName) << "\"/>";
-                << R"(group="" part="0" file=")" << vtpFileName << "\"/>";
+                << R"(group="" part="0" file=")" << vtpFileName << "\"/>" << '\n';
 
         // write to the file
         writeFileHeader(i, vtpFile);
@@ -182,8 +182,8 @@ void nBodyAlgorithm::writeMasses(const SimulationData &simulationData, std::ofst
 }
 
 void nBodyAlgorithm::writeAccelerations(size_t i, std::ofstream &vtpFile) {
-    for (double acc: acceleration[i]) {
-        vtpFile << acc << '\n';
+    for (std::size_t j = 0; j < (t_end / dt) + 1; ++j) {
+        vtpFile << 0 << '\n';
     }
 }
 
