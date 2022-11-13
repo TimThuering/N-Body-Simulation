@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include <cmath>
 #include "SimulationData.hpp"
 
 /*
@@ -15,10 +16,11 @@ public:
     std::string description; // The name of the algorithm
 
     std::string outputDirectory;
-    double dt; // delta t determines the step width used for the simulation
+    double dt; // delta t determines the time step width used for the simulation
     double t_end; // determines when the simulation will stop
     double visualizationStepWidth; // determines the step width used for the visualization (i.e. the ParaView output)
-    std::size_t numberOfBodies;
+    std::size_t numberOfBodies; // total number of bodies
+    double G;
 
 
     // maps simulation step to computed position values
@@ -34,10 +36,10 @@ public:
     // maps simulation step to computed acceleration values
     std::map<std::size_t, std::vector<double>> acceleration;
 
-    std::map<std::size_t, std::vector<double>> kineticEnergy;
-    std::map<std::size_t, std::vector<double>> potentialEnergy;
-    std::map<std::size_t, std::vector<double>> totalEnergy;
-    std::map<std::size_t, std::vector<double>> virialEquilibrium;
+    std::map<std::size_t, double> kineticEnergy;
+    std::map<std::size_t, double> potentialEnergy;
+    std::map<std::size_t, double> totalEnergy;
+    std::map<std::size_t, double> virialEquilibrium;
 
     nBodyAlgorithm(double dt, double t_end, double visualizationStepWidth, std::string &outputDirectory,
                    std::size_t numberOfBodies) {
@@ -46,6 +48,14 @@ public:
         this->visualizationStepWidth = visualizationStepWidth;
         this->outputDirectory = outputDirectory;
         this->numberOfBodies = numberOfBodies;
+
+        // Gravitational constant G
+        this->G = 6.67428 * pow(10, -11);
+        double meter_AU = 1.0 / (1.49597870691 * pow(10, 11));
+        double second_Days = 1.0 / 86400;
+
+        // scale G appropriately
+        G = G * (pow(meter_AU, 3) / pow(second_Days, 2));
     }
 
     /*

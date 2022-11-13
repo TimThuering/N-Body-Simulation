@@ -125,27 +125,20 @@ void nBodyAlgorithm::generateParaViewOutput(const SimulationData &simulationData
 }
 
 void nBodyAlgorithm::writeVirialEquilibrium(size_t i, std::ofstream &vtpFile) {
-    for (double VE: virialEquilibrium[i]) {
-        vtpFile << VE << '\n';
-    }
+        vtpFile << virialEquilibrium[i] << '\n';
 }
 
 void nBodyAlgorithm::writeTotalEnergy(size_t i, std::ofstream &vtpFile) {
-    for (double E: totalEnergy[i]) {
-        vtpFile << E << '\n';
-    }
+        vtpFile << totalEnergy[i] << '\n';
+
 }
 
 void nBodyAlgorithm::writePotentialEnergy(size_t i, std::ofstream &vtpFile) {
-    for (double E_pot: potentialEnergy[i]) {
-        vtpFile << E_pot << '\n';
-    }
+        vtpFile << potentialEnergy[i] << '\n';
 }
 
 void nBodyAlgorithm::writeKineticEnergy(size_t i, std::ofstream &vtpFile) {
-    for (double E_kin: kineticEnergy[i]) {
-        vtpFile << E_kin << '\n';
-    }
+        vtpFile << kineticEnergy[i] << '\n';
 }
 
 void nBodyAlgorithm::writeConnectivity(size_t i, std::ofstream &vtpFile) {
@@ -182,7 +175,7 @@ void nBodyAlgorithm::writeMasses(const SimulationData &simulationData, std::ofst
 }
 
 void nBodyAlgorithm::writeAccelerations(size_t i, std::ofstream &vtpFile) {
-    for (std::size_t j = 0; j < (t_end / dt) + 1; ++j) {
+    for (std::size_t j = 0; j < positions_x[i].size(); ++j) {
         vtpFile << 0 << '\n';
     }
 }

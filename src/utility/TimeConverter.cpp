@@ -2,7 +2,7 @@
 #include "TimeConverter.hpp"
 
 double TimeConverter::convertToEarthDays(std::string &time) {
-    const double hourInEarthDays = 0.0416667; // one hour are 0.0416667 earth days
+    const double hourInEarthDays = 1.0 / 24; // one hour are 0.0416667 earth days
     const double monthInEarthDays = 30.4167;  // one month are 30.4167 earth days
     const double yearInEarthDays = 365.25;    // one year are 365.25 earth days
 
