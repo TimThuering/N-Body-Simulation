@@ -19,27 +19,31 @@ public:
 
 private:
     /*
-     * computes the acceleration of each body
+     * Computes the acceleration of each body induced by the gravitation of all the other bodies.
+     * The functions makes use of SYCL and is optimized for execution on GPUs.
+     *
+     * The masses buffer contains the masses of all the buffers.
+     * The 3 buffers current_position_{x,y,z} contain the current position of all the bodies.
+     * The 3 buffers acceleration_{x,y,z} will be used to store the computed accelerations.
      */
-    void computeAccelerations(queue &queue, buffer<double> &masses, std::vector<double> &currentPositions_x,
-                              std::vector<double> &currentPositions_y, std::vector<double> &currentPositions_z,
-                              std::vector<double> &acceleration_x, std::vector<double> &acceleration_y,
-                              std::vector<double> &acceleration_z);
+    void computeAccelerationsGPU(queue &queue, buffer<double> &masses, buffer<double> &currentPositions_x,
+                                 buffer<double> &currentPositions_y, buffer<double> &currentPositions_z,
+                                 buffer<double> &acceleration_x, buffer<double> &acceleration_y,
+                                 buffer<double> &acceleration_z);
 
-    void computeAccelerationsOptimized(queue &queue, buffer<double> &masses, buffer<double> &currentPositions_x,
-                                       buffer<double> &currentPositions_y, buffer<double> &currentPositions_z,
-                                       buffer<double> &acceleration_x, buffer<double> &acceleration_y,
-                                       buffer<double> &acceleration_z);
 
     /*
-     * computes the kinetic, potential and total energy and the virial equilibrium in the current step and stores
-     * the computed values.
+     * Computes the kinetic, potential and total energy and the virial equilibrium in the current step and stores
+     * the computed values for the ParaView output.
+     *
+     * The function makes use of SYCL for parallel computation.
+     * The 7 buffers masses, current_position_{x,y,z} and velocities_{x,y,z} contain the respective values of each body in the current time step.
      */
     void computeEnergy(queue &queue, buffer<double> &masses, std::size_t currentStep,
                        buffer<double> &currentPositions_x,
                        buffer<double> &currentPositions_y, buffer<double>
                        &currentPositions_z,
-                       buffer<double> &avelocities_x, buffer<double>
+                       buffer<double> &velocities_x, buffer<double>
                        &velocities_y,
                        buffer<double> &velocities_z
     );
@@ -56,10 +60,7 @@ private:
      */
     void adjustVelocities(const SimulationData &simulationData);
 
-    void computeAccelerationsOptimized2(queue &queue, buffer<double> &masses, buffer<double> &currentPositions_x,
-                                        buffer<double> &currentPositions_y, buffer<double> &currentPositions_z,
-                                        buffer<double> &acceleration_x, buffer<double> &acceleration_y,
-                                        buffer<double> &acceleration_z);
+
 };
 
 #endif //N_BODY_SIMULATION_NAIVEALGORITHM_HPP

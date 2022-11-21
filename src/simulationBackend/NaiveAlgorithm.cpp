@@ -14,8 +14,8 @@ NaiveAlgorithm::NaiveAlgorithm(double dt, double tEnd, double visualizationStepW
 
 void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
     auto begin = std::chrono::steady_clock::now();
-    // Vectors for the acceleration values of each body induced by the gravitational force from all other bodies in
-    // the dataset. The index corresponds the body id.
+    // Vectors and their corresponding buffers for the acceleration values of each body induced by the gravitational
+    // force from all other bodies in the dataset. The index corresponds the body id.
     std::vector<double> acc_x(numberOfBodies);
     std::vector<double> acc_y(numberOfBodies);
     std::vector<double> acc_z(numberOfBodies);
@@ -36,7 +36,6 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
     // adjust the initial velocities of all bodies
     adjustVelocities(simulationData);
 
-
     // buffers for intermediate position and velocity values;
     buffer<double> intermediatePosition_x = simulationData.positions_x;
     buffer<double> intermediatePosition_y = simulationData.positions_y;
@@ -46,8 +45,6 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
     buffer<double> intermediateVelocity_y = simulationData.velocities_y;
     buffer<double> intermediateVelocity_z = simulationData.velocities_z;
 
-
-
     // SYCL queue for computation tasks
     queue queue;
 
@@ -56,17 +53,18 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
 
     // current time of the simulation
     double time = 0.0;
-    double timeSinceLastVisualization = 0.0;
+    double timeSinceLastVisualization = 0.0; // used to determine the time steps that should be visualized
 
     // current visualization step of the simulation
     std::size_t currentStep = 0;
 
-    // computations of initial state: all values get stored for the output
+    // start of the simulation:
+    // computations for initial state: all values get stored for the output
 
     // compute initial accelerations
-    computeAccelerationsOptimized2(queue, masses, intermediatePosition_x, intermediatePosition_y,
-                                   intermediatePosition_z,
-                                   acceleration_x, acceleration_y, acceleration_z);
+    computeAccelerationsGPU(queue, masses, intermediatePosition_x, intermediatePosition_y,
+                            intermediatePosition_z,
+                            acceleration_x, acceleration_y, acceleration_z);
 
     // compute energy of the initial step.
     computeEnergy(queue, masses, currentStep, intermediatePosition_x, intermediatePosition_y, intermediatePosition_z,
@@ -87,15 +85,15 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
     buffer<double> vz_k1_2(numberOfBodies);
 
 
-
-    // start of simulation
+    // simulation of the next steps:
     while (time < t_end) {
 
+        // determine if current step should be visualized.
         bool visualizeCurrentStep = (std::abs(timeSinceLastVisualization - visualizationStepWidth) < 0.000001);
 
         double delta_t = dt;
 
-        // leapfrog integration part 1 updates the position
+        // leapfrog integration part 1: update the position
         queue.submit([&](handler &h) {
 
             accessor<double> VX_k1_2(vx_k1_2, h);
@@ -127,7 +125,7 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
             });
         }).wait();
 
-        // store the current body positions for visualization
+        // store the current body positions for visualization if the current step should be visualized
         if (visualizeCurrentStep) {
             std::cout << "Step " << currentStep << std::endl;
 
@@ -144,12 +142,12 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
 
 
         // update the acceleration values, only depends on new position of bodies
-        computeAccelerationsOptimized2(queue, masses, intermediatePosition_x, intermediatePosition_y,
-                                       intermediatePosition_z,
-                                       acceleration_x, acceleration_y, acceleration_z);
+        computeAccelerationsGPU(queue, masses, intermediatePosition_x, intermediatePosition_y,
+                                intermediatePosition_z,
+                                acceleration_x, acceleration_y, acceleration_z);
 
 
-        // leapfrog integration part 2, update velocities based on the new computed acceleration
+        // leapfrog integration part 2: update velocities based on the newly computed acceleration
         queue.submit([&](handler &h) {
 
             accessor<double> VX_k1_2(vx_k1_2, h);
@@ -272,6 +270,7 @@ void NaiveAlgorithm::computeEnergy(queue &queue, buffer<double> &masses, std::si
         accessor<double> M(masses, h);
 
 
+        // parallel computation for kinetic and potential energy.
         h.parallel_for(numberOfBodies, [=](auto &j) {
             double v = V_X[j] * V_X[j] +
                        V_Y[j] * V_Y[j] +
@@ -305,94 +304,21 @@ void NaiveAlgorithm::computeEnergy(queue &queue, buffer<double> &masses, std::si
     // total energy
     E_total_result = E_kin_result + E_pot_result;
 
+    // store results for ParaView output generation.
     totalEnergy[currentStep] = E_total_result;
     potentialEnergy[currentStep] = E_pot_result;
     kineticEnergy[currentStep] = E_kin_result;
     virialEquilibrium[currentStep] = (2.0 * E_kin_result) / std::abs(E_pot_result);
 }
 
-void NaiveAlgorithm::computeAccelerations(queue &queue, buffer<double> &masses, std::vector<double> &currentPositions_x,
-                                          std::vector<double> &currentPositions_y,
-                                          std::vector<double> &currentPositions_z,
-                                          std::vector<double> &acceleration_x, std::vector<double> &acceleration_y,
-                                          std::vector<double> &acceleration_z) {
-    auto begin = std::chrono::steady_clock::now();
-    double epsilon_2;
-    epsilon_2 = pow(10, -22);
 
-    buffer<double> pos_x = currentPositions_x;
-    buffer<double> pos_y = currentPositions_y;
-    buffer<double> pos_z = currentPositions_z;
-
-    for (std::size_t i = 0; i < numberOfBodies; ++i) {
-        buffer<double> accelerations_x{range{numberOfBodies}};
-        buffer<double> accelerations_y{range{numberOfBodies}};
-        buffer<double> accelerations_z{range{numberOfBodies}};
-
-        queue.submit([&](handler &h) {
-            accessor<double> POS_X(pos_x, h);
-            accessor<double> POS_Y(pos_y, h);
-            accessor<double> POS_Z(pos_z, h);
-
-            accessor<double> MASSES(masses, h);
-
-            accessor<double> ACC_X(accelerations_x, h);
-            accessor<double> ACC_Y(accelerations_y, h);
-            accessor<double> ACC_Z(accelerations_z, h);
-
-            // device code
-            h.parallel_for(numberOfBodies, [=](auto &j) {
-                double r_x = POS_X[j] - POS_X[i];
-                double r_y = POS_Y[j] - POS_Y[i];
-                double r_z = POS_Z[j] - POS_Z[i];
-
-                double denominator = sycl::sqrt((r_x * r_x) + (r_y * r_y) + (r_z * r_z) + epsilon_2);
-                denominator = denominator * denominator * denominator;
-
-                ACC_X[j] = MASSES[j] * (r_x / denominator);
-                ACC_Y[j] = MASSES[j] * (r_y / denominator);
-                ACC_Z[j] = MASSES[j] * (r_z / denominator);
-            });
-        }).wait();
-
-
-        host_accessor<double> ACC_X(accelerations_x);
-        host_accessor<double> ACC_Y(accelerations_y);
-        host_accessor<double> ACC_Z(accelerations_z);
-
-        double acc_x = 0;
-        double acc_y = 0;
-        double acc_z = 0;
-
-        // sum up accelerations
-        for (std::size_t idx = 0; idx < numberOfBodies; ++idx) {
-            if (idx != i) {
-                acc_x += ACC_X[idx];
-                acc_y += ACC_Y[idx];
-                acc_z += ACC_Z[idx];
-            }
-        }
-
-        acceleration_x.at(i) = G * acc_x;
-        acceleration_y.at(i) = G * acc_y;
-        acceleration_z.at(i) = G * acc_z;
-    }
-
-    auto end = std::chrono::steady_clock::now();
-
-    std::cout << "Accelerations:  " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
-              << std::endl;
-
-
-}
-
-void NaiveAlgorithm::computeAccelerationsOptimized(queue &queue, buffer<double> &masses,
-                                                   buffer<double> &currentPositions_x,
-                                                   buffer<double> &currentPositions_y,
-                                                   buffer<double> &currentPositions_z,
-                                                   buffer<double> &acceleration_x,
-                                                   buffer<double> &acceleration_y,
-                                                   buffer<double> &acceleration_z) {
+void NaiveAlgorithm::computeAccelerationsGPU(queue &queue, buffer<double> &masses,
+                                             buffer<double> &currentPositions_x,
+                                             buffer<double> &currentPositions_y,
+                                             buffer<double> &currentPositions_z,
+                                             buffer<double> &acceleration_x,
+                                             buffer<double> &acceleration_y,
+                                             buffer<double> &acceleration_z) {
 
     auto begin = std::chrono::steady_clock::now();
     double epsilon_2 = pow(10, -22);
@@ -410,69 +336,15 @@ void NaiveAlgorithm::computeAccelerationsOptimized(queue &queue, buffer<double> 
         accessor<double> ACC_Z(acceleration_z, h);
 
         std::size_t N = numberOfBodies;
-        double G = this->G;
+        int tileSize = 64; // tile size should be of the form 2^x
 
-        // device code
-        h.parallel_for(numberOfBodies, [=](auto &i) {
-            ACC_X[i] = 0;
-            ACC_Y[i] = 0;
-            ACC_Z[i] = 0;
-
-            for (std::size_t j = 0; j < N; ++j) {
-
-                double r_x = POS_X[j] - POS_X[i];
-                double r_y = POS_Y[j] - POS_Y[i];
-                double r_z = POS_Z[j] - POS_Z[i];
-
-                double denominator = sycl::sqrt((r_x * r_x) + (r_y * r_y) + (r_z * r_z) + epsilon_2);
-                denominator = denominator * denominator * denominator;
-
-                ACC_X[i] += MASSES[j] * (r_x / denominator);
-                ACC_Y[i] += MASSES[j] * (r_y / denominator);
-                ACC_Z[i] += MASSES[j] * (r_z / denominator);
-            }
-
-            ACC_X[i] *= G;
-            ACC_Y[i] *= G;
-            ACC_Z[i] *= G;
-        });
-    }).wait();
-    auto end = std::chrono::steady_clock::now();
-
-    std::cout << "Acceleration Kernel Time:  "
-              << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
-              << std::endl;
-}
-
-void NaiveAlgorithm::computeAccelerationsOptimized2(queue &queue, buffer<double> &masses,
-                                                    buffer<double> &currentPositions_x,
-                                                    buffer<double> &currentPositions_y,
-                                                    buffer<double> &currentPositions_z,
-                                                    buffer<double> &acceleration_x,
-                                                    buffer<double> &acceleration_y,
-                                                    buffer<double> &acceleration_z) {
-
-    auto begin = std::chrono::steady_clock::now();
-    double epsilon_2 = pow(10, -22);
-
-    queue.submit([&](handler &h) {
-
-        accessor<double> POS_X(currentPositions_x, h);
-        accessor<double> POS_Y(currentPositions_y, h);
-        accessor<double> POS_Z(currentPositions_z, h);
-
-        accessor<double> MASSES(masses, h);
-
-        accessor<double> ACC_X(acceleration_x, h);
-        accessor<double> ACC_Y(acceleration_y, h);
-        accessor<double> ACC_Z(acceleration_z, h);
-
-        std::size_t N = numberOfBodies;
-        int tileSize = 64;
+        // global size of the nd_range kernel has to be divisible by the tile size (local size).
+        // The purpose of the padding is that numberOfBodies + padding is divisible by the tile size.
         std::size_t padding = tileSize - (numberOfBodies % tileSize);
 
         double G = this->G;
 
+        // Accessors for masses and positions in local memory
         local_accessor<double> LOCAL_MASSES(tileSize, h);
         local_accessor<double> LOCAL_POS_X(tileSize, h);
         local_accessor<double> LOCAL_POS_Y(tileSize, h);
@@ -481,7 +353,7 @@ void NaiveAlgorithm::computeAccelerationsOptimized2(queue &queue, buffer<double>
         // device code
         h.parallel_for(nd_range<1>(range<1>(numberOfBodies + padding), range<1>(tileSize)), [=](auto &nd_item) {
             int i = nd_item.get_global_id();
-            if (i < N) {
+            if (i < N) { // if i>N is not valid since it is part of the padding.
                 double acc_x = 0;
                 double acc_y = 0;
                 double acc_z = 0;
@@ -492,15 +364,16 @@ void NaiveAlgorithm::computeAccelerationsOptimized2(queue &queue, buffer<double>
 
                 int local_id = nd_item.get_local_id();
 
+                // iterate over all other bodies in blocks of tile size. After each tile, reload the all values from global into local memory.
                 for (int k = 0; k < N; k += tileSize) {
 
-                    if (local_id + k < N) {
+                    if (local_id + k < N) { // if > N, we have already reached the last body and all other values would be part of the padding.
                         LOCAL_MASSES[local_id] = MASSES[k + local_id];
                         LOCAL_POS_X[local_id] = POS_X[k + local_id];
                         LOCAL_POS_Y[local_id] = POS_Y[k + local_id];
                         LOCAL_POS_Z[local_id] = POS_Z[k + local_id];
                     }
-                    nd_item.barrier();
+                    nd_item.barrier(); // start with computation only when all values are loaded into the local memory.
 
                     for (int j = 0; j < tileSize && j + k < N; ++j) {
                         double r_x = LOCAL_POS_X[j] - pos_x;
@@ -514,7 +387,7 @@ void NaiveAlgorithm::computeAccelerationsOptimized2(queue &queue, buffer<double>
                         acc_y += LOCAL_MASSES[j] * (r_y / denominator);
                         acc_z += LOCAL_MASSES[j] * (r_z / denominator);
                     }
-                    nd_item.barrier();
+                    nd_item.barrier(); // continue with loading new values only when all computations of current tile are done
                 }
 
                 ACC_X[i] = acc_x * G;
