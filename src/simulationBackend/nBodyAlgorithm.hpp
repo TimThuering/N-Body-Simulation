@@ -5,6 +5,9 @@
 #include <map>
 #include <cmath>
 #include "SimulationData.hpp"
+#include <sycl/sycl.hpp>
+
+using namespace sycl;
 
 /*
  * Class from which all classes containing an implementation of an n-body algorithm are derived from.
@@ -68,6 +71,33 @@ public:
      * Generates all files necessary for the ParaView visualization
      */
     void generateParaViewOutput(const SimulationData &simulationData);
+
+    /*
+     * Computes the kinetic, potential and total energy and the virial equilibrium in the current step and stores
+     * the computed values for the ParaView output.
+     *
+     * The function makes use of SYCL for parallel computation.
+     * The 7 buffers masses, current_position_{x,y,z} and velocities_{x,y,z} contain the respective values of each body in the current time step.
+     */
+    void computeEnergy(queue &queue, buffer<double> &masses, std::size_t currentStep,
+                       buffer<double> &currentPositions_x,
+                       buffer<double> &currentPositions_y, buffer<double>
+                       &currentPositions_z,
+                       buffer<double> &currentVelocities_x, buffer<double>
+                       &currentVelocities_y,
+                       buffer<double> &currentVelocities_z);
+
+    /*
+     * Compute the norm of the x,y and z component of the acceleration of each body in the current time step and saves
+     * the values.
+     */
+    void storeAccelerations(std::size_t currentStep, buffer<double> &acceleration_x,
+                            buffer<double> &acceleration_y, buffer<double> &acceleration_z);
+
+    /*
+     * This function adjusts the initial velocity values and will be used once before the first simulation step
+     */
+    void adjustVelocities(const SimulationData &simulationData);
 
 private:
     // Helper functions for generating the ParaView output:

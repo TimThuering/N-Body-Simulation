@@ -19,7 +19,7 @@ add_executable(N_Body_Simulation
         src/simulationData/InputParser.cpp
         src/simulationBackend/NaiveAlgorithm.cpp
         src/simulationBackend/nBodyAlgorithm.cpp
-        src/utility/TimeConverter.cpp)
+        src/utility/TimeConverter.cpp src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.hpp)
 
 include(FetchContent)
 FetchContent_Declare(
