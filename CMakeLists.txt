@@ -36,10 +36,17 @@ add_executable(InputParserTest
         tests/TimeConverterTest.cpp
         src/utility/TimeConverter.cpp)
 
+add_executable(BarnesHutTest
+        tests/BarnesHutTest.cpp
+        src/simulationBackend/nBodyAlgorithm.cpp
+        src/simulationBackend/BarnesHutAlgorithm.cpp)
+
 enable_testing()
 include(GoogleTest)
 gtest_discover_tests(InputParserTest)
+gtest_discover_tests(BarnesHutTest)
 target_link_libraries(InputParserTest GTest::gtest_main)
+target_link_libraries(BarnesHutTest GTest::gtest_main)
 
 FetchContent_Declare(
         cxxopts

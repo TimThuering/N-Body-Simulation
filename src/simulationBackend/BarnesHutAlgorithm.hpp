@@ -56,7 +56,7 @@ public:
                        std::size_t numberOfBodies);
 
     /*
-     * Computes an n-body simulation with the naive algorithm
+     * Computes an n-body simulation with the Barnes-Hut algorithm
      */
     void startSimulation(const SimulationData &simulationData) override;
 
