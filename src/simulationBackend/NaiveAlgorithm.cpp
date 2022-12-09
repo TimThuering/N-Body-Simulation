@@ -296,7 +296,7 @@ void NaiveAlgorithm::computeAccelerationsGPU(queue &queue, buffer<double> &masse
     }).wait();
     auto end = std::chrono::steady_clock::now();
 
-//    std::cout << "Acceleration Kernel Time:  "
-//              << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
-//              << std::endl;
+    std::cout << "Acceleration Kernel Time:  "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+              << std::endl;
 }

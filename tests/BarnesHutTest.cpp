@@ -10,15 +10,19 @@ TEST(TestTreeCreation, AABB_creation) {
     std::string temp = " ";
     BarnesHutAlgorithm algorithm(1.0/24, 30, 1, temp, 3);
     queue queue;
-    std::vector<double> x_positions = {0,0,2};
-    std::vector<double> y_positions = {1,0,0};
-    std::vector<double> z_positions = {0,2,0};
-    SimulationData simulationData;
-    simulationData.positions_x = x_positions;
-    simulationData.positions_y = y_positions;
-    simulationData.positions_z = z_positions;
+    std::vector<double> x_positions_vec = {0,0,2};
+    std::vector<double> y_positions_vec = {1,0,0};
+    std::vector<double> z_positions_vec = {0,2,0};
 
-    algorithm.computeMinMaxValuesAABB(queue, simulationData);
+    buffer<double> x_positions = x_positions_vec;
+    buffer<double> y_positions = y_positions_vec;
+    buffer<double> z_positions = z_positions_vec;
+    SimulationData simulationData;
+    simulationData.positions_x = x_positions_vec;
+    simulationData.positions_y = y_positions_vec;
+    simulationData.positions_z = z_positions_vec;
+
+    algorithm.computeMinMaxValuesAABB(queue, x_positions, y_positions, z_positions);
 
     EXPECT_EQ(algorithm.AABB_EdgeLength, 2);
     EXPECT_EQ(algorithm.min_x, 0);
@@ -33,15 +37,19 @@ TEST(TestTreeCreation, split_node_test) {
     std::string temp = " ";
     BarnesHutAlgorithm algorithm(1.0/24, 30, 1, temp, 3);
     queue queue;
-    std::vector<double> x_positions = {0,0,2};
-    std::vector<double> y_positions = {1,0,0};
-    std::vector<double> z_positions = {0,2,0};
-    SimulationData simulationData;
-    simulationData.positions_x = x_positions;
-    simulationData.positions_y = y_positions;
-    simulationData.positions_z = z_positions;
+    std::vector<double> x_positions_vec = {0,0,2};
+    std::vector<double> y_positions_vec = {1,0,0};
+    std::vector<double> z_positions_vec = {0,2,0};
 
-    algorithm.computeMinMaxValuesAABB(queue, simulationData);
+    buffer<double> x_positions = x_positions_vec;
+    buffer<double> y_positions = y_positions_vec;
+    buffer<double> z_positions = z_positions_vec;
+    SimulationData simulationData;
+    simulationData.positions_x = x_positions_vec;
+    simulationData.positions_y = y_positions_vec;
+    simulationData.positions_z = z_positions_vec;
+
+    algorithm.computeMinMaxValuesAABB(queue, x_positions, y_positions, z_positions);
     // insert root node
     algorithm.edgeLengths.push_back(algorithm.AABB_EdgeLength);
     algorithm.bodyOfNode.push_back(3);
@@ -130,17 +138,19 @@ TEST(TestTreeCreation, getOctantContaingBodyTest) {
     std::string temp = " ";
     BarnesHutAlgorithm algorithm(1.0/24, 30, 1, temp, 3);
     queue queue;
-    std::vector<double> x_positions = {0,0,2};
-    std::vector<double> y_positions = {1,0,0};
-    std::vector<double> z_positions = {0,2,0};
+    std::vector<double> x_positions_vec = {0,0,2};
+    std::vector<double> y_positions_vec = {1,0,0};
+    std::vector<double> z_positions_vec = {0,2,0};
 
+    buffer<double> x_positions = x_positions_vec;
+    buffer<double> y_positions = y_positions_vec;
+    buffer<double> z_positions = z_positions_vec;
     SimulationData simulationData;
+    simulationData.positions_x = x_positions_vec;
+    simulationData.positions_y = y_positions_vec;
+    simulationData.positions_z = z_positions_vec;
 
-    simulationData.positions_x = x_positions;
-    simulationData.positions_y = y_positions;
-    simulationData.positions_z = z_positions;
-
-    algorithm.computeMinMaxValuesAABB(queue, simulationData);
+    algorithm.computeMinMaxValuesAABB(queue, x_positions, y_positions, z_positions);
 
     // insert root node
     algorithm.edgeLengths.push_back(algorithm.AABB_EdgeLength);
@@ -160,32 +170,43 @@ TEST(TestTreeCreation, getOctantContaingBodyTest) {
     // split the root node into octants
     algorithm.splitNode(0,1);
 
+    host_accessor<double> POS_X(x_positions);
+    host_accessor<double> POS_Y(y_positions);
+    host_accessor<double> POS_Z(z_positions);
+
     // First Body at (0,1,0) should be in octant upper_NW of the root node.
-    EXPECT_EQ(algorithm.getOctantContainingBody(x_positions[0], y_positions[0], z_positions[0], 0), 1);
+    EXPECT_EQ(algorithm.getOctantContainingBody(POS_X[0], POS_Y[0], POS_Z[0], 0), 1);
 
     // Second Body at (0,0,2) should be in octant lower_SW of the root node.
-    EXPECT_EQ(algorithm.getOctantContainingBody(x_positions[1], y_positions[1], z_positions[1], 0), 7);
+    EXPECT_EQ(algorithm.getOctantContainingBody(POS_X[1], POS_Y[1], POS_Z[1], 0), 7);
 
     // Third Body at (2,0,0) should be in octant lower_NE of the root node
-    EXPECT_EQ(algorithm.getOctantContainingBody(x_positions[2], y_positions[2], z_positions[2], 0), 6);
+    EXPECT_EQ(algorithm.getOctantContainingBody(POS_X[2], POS_Y[2], POS_Z[2], 0), 6);
 }
 
 TEST(TestTreeCreation, buildOctreeTest) {
     std::string temp = " ";
     BarnesHutAlgorithm algorithm(1.0/24, 30, 1, temp, 3);
     queue queue;
-    std::vector<double> x_positions = {0,0,2};
-    std::vector<double> y_positions = {1,0,0};
-    std::vector<double> z_positions = {0,2,0};
+    std::vector<double> x_positions_vec = {0,0,2};
+    std::vector<double> y_positions_vec = {1,0,0};
+    std::vector<double> z_positions_vec = {0,2,0};
+    std::vector<double> masses_vec = {10,10,10};
+
+    buffer<double> x_positions = x_positions_vec;
+    buffer<double> y_positions = y_positions_vec;
+    buffer<double> z_positions = z_positions_vec;
+    buffer<double> masses = masses_vec;
 
     SimulationData simulationData;
 
-    simulationData.positions_x = x_positions;
-    simulationData.positions_y = y_positions;
-    simulationData.positions_z = z_positions;
+    simulationData.positions_x = x_positions_vec;
+    simulationData.positions_y = y_positions_vec;
+    simulationData.positions_z = z_positions_vec;
+    simulationData.mass = masses_vec;
 
-    algorithm.computeMinMaxValuesAABB(queue, simulationData);
-    algorithm.buildOctree(queue,x_positions,y_positions,z_positions);
+    algorithm.computeMinMaxValuesAABB(queue, x_positions, y_positions, z_positions);
+    algorithm.buildOctree(queue,x_positions,y_positions,z_positions, masses);
 
     // check the sizes of all vectors, such that exactly 8 new nodes have been created
     EXPECT_EQ(algorithm.min_x_values.size(), 9);
@@ -214,5 +235,3 @@ TEST(TestTreeCreation, buildOctreeTest) {
     EXPECT_EQ(algorithm.bodyOfNode[7], 1); // second body in lower_SW
     EXPECT_EQ(algorithm.bodyOfNode[8], 3);
 }
-
-

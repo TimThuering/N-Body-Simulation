@@ -20,6 +20,8 @@ public:
 
     double AABB_EdgeLength;
 
+    std::size_t maxTreeDepth;
+
     // data structures for linearized octree. The indices of the vectors correspond to the node IDs.
 
     // the upper 4 octants of one node in the tree
@@ -49,8 +51,10 @@ public:
     // the sums of the masses of all bodies in the respective octants
     std::vector<double> sumMasses;
 
-    // the center of the masses of all bodies in the respective octants
-    std::vector<double> centerOfMass;
+    // the center of the masses of all bodies in the respective octants (only contain the numerator --> have to be divided by the corresponding sum of masses)
+    std::vector<double> centerOfMass_x;
+    std::vector<double> centerOfMass_y;
+    std::vector<double> centerOfMass_z;
 
     BarnesHutAlgorithm(double dt, double tEnd, double visualizationStepWidth, std::string &outputDirectory,
                        std::size_t numberOfBodies);
@@ -63,15 +67,20 @@ public:
     /*
      * This function builds an octree containing all bodies of the simulation
      */
-    void buildOctree(queue &queue, std::vector<double> &current_positions_x, std::vector<double> &current_positions_y,
-                     std::vector<double> &current_positions_z);
+    void buildOctree(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
+                     buffer<double> &current_positions_z, buffer<double> &masses);
+
+
+    void buildOctreeParallel(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
+                             buffer<double> &current_positions_z, buffer<double> &masses);
 
 
     /*
      * This function computes the minimum and maximum x,y,z values of the positions in the simulation data
      * and stores them in the corresponding class variables.
      */
-    void computeMinMaxValuesAABB(queue &queue, const SimulationData &simulationData);
+    void computeMinMaxValuesAABB(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
+                                 buffer<double> &current_positions_z);
 
     /*
      * This function splits the node with NodeID into 8 octants.
@@ -84,6 +93,26 @@ public:
      */
     std::size_t getOctantContainingBody(double body_position_x, double body_position_y, double body_position_z,
                                         std::size_t parentNodeID);
-    };
+
+
+    /*
+     * Computes the acceleration of each body induced by the gravitation of all the other bodies.
+     * The functions makes use of SYCL for parallel execution.
+     *
+     * The masses buffer contains the masses of all the buffers.
+     * The 3 buffers current_position_{x,y,z} contain the current position of all the bodies.
+     * The 3 buffers acceleration_{x,y,z} will be used to store the computed accelerations.
+     */
+    void computeAccelerations(queue &queue, buffer<double> &masses, buffer<double> &currentPositions_x,
+                              buffer<double> &currentPositions_y, buffer<double> &currentPositions_z,
+                              buffer<double> &acceleration_x, buffer<double> &acceleration_y,
+                              buffer<double> &acceleration_z);
+
+    /*
+     * resets all values of the octree to their default values
+     */
+    void resetOctree();
+};
+
 
 #endif //N_BODY_SIMULATION_BARNESHUTALGORITHM_HPP

@@ -43,8 +43,7 @@ add_executable(BarnesHutTest
 
 enable_testing()
 include(GoogleTest)
-gtest_discover_tests(InputParserTest)
-gtest_discover_tests(BarnesHutTest)
+gtest_discover_tests(InputParserTest BarnesHutTest)
 target_link_libraries(InputParserTest GTest::gtest_main)
 target_link_libraries(BarnesHutTest GTest::gtest_main)
 
