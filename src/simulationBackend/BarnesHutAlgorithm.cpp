@@ -9,10 +9,27 @@ using namespace sycl;
 
 BarnesHutAlgorithm::BarnesHutAlgorithm(double dt, double tEnd, double visualizationStepWidth,
                                        std::string &outputDirectory, std::size_t numberOfBodies)
-        : nBodyAlgorithm(dt, tEnd, visualizationStepWidth, outputDirectory, numberOfBodies) {
+        : nBodyAlgorithm(dt, tEnd, visualizationStepWidth, outputDirectory, numberOfBodies),
+          upper_NW_vec(16 * numberOfBodies),
+          upper_NE_vec(16 * numberOfBodies),
+          upper_SW_vec(16 * numberOfBodies),
+          upper_SE_vec(16 * numberOfBodies),
+          lower_NW_vec(16 * numberOfBodies),
+          lower_NE_vec(16 * numberOfBodies),
+          lower_SW_vec(16 * numberOfBodies),
+          lower_SE_vec(16 * numberOfBodies),
+          edgeLengths_vec(16 * numberOfBodies),
+          min_x_values_vec(16 * numberOfBodies),
+          min_y_values_vec(16 * numberOfBodies),
+          min_z_values_vec(16 * numberOfBodies),
+          bodyOfNode_vec(16 * numberOfBodies, numberOfBodies),
+          sumMasses_vec(16 * numberOfBodies),
+          centerOfMass_x_vec(16 * numberOfBodies),
+          centerOfMass_y_vec(16 * numberOfBodies),
+          centerOfMass_z_vec(16 * numberOfBodies) {
     this->description = "Barnes-Hut Algorithm";
-
 }
+
 
 void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
     // Vectors and their corresponding buffers for the acceleration values of each body induced by the gravitational
@@ -73,7 +90,8 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
     // computations for initial state: all values get stored for the output
 
     computeMinMaxValuesAABB(queue, intermediatePosition_x, intermediatePosition_y, intermediatePosition_z);
-    buildOctree(queue, intermediatePosition_x, intermediatePosition_y, intermediatePosition_z, masses);
+    buildOctreeParallel(queue, intermediatePosition_x, intermediatePosition_y, intermediatePosition_z, masses);
+
 
     // compute initial accelerations
     computeAccelerations(queue, masses, intermediatePosition_x, intermediatePosition_y,
@@ -156,11 +174,16 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
             }
         }
 
+//        {
+//            host_accessor<double> SUM_MASSES(sumOfMasses);
+//            std::cout << "----------------------- " << SUM_MASSES[0] << std::endl;
+//        }
+
         auto begin = std::chrono::steady_clock::now();
         resetOctree();
         computeMinMaxValuesAABB(queue, intermediatePosition_x, intermediatePosition_y, intermediatePosition_z);
-        buildOctree(queue, intermediatePosition_x, intermediatePosition_y, intermediatePosition_z,
-                    masses);
+        buildOctreeParallel(queue, intermediatePosition_x, intermediatePosition_y, intermediatePosition_z,
+                            masses);
 
         computeAccelerations(queue, masses, intermediatePosition_x, intermediatePosition_y,
                              intermediatePosition_z,
@@ -239,29 +262,29 @@ void BarnesHutAlgorithm::resetOctree() {
     max_y = std::numeric_limits<double>::lowest();
     max_z = std::numeric_limits<double>::lowest();
 
-    upper_NW.clear();
-    upper_NE.clear();
-    upper_SW.clear();
-    upper_SE.clear();
+    upper_NW_vec.clear();
+    upper_NE_vec.clear();
+    upper_SW_vec.clear();
+    upper_SE_vec.clear();
 
-    lower_NW.clear();
-    lower_NE.clear();
-    lower_SW.clear();
-    lower_SE.clear();
+    lower_NW_vec.clear();
+    lower_NE_vec.clear();
+    lower_SW_vec.clear();
+    lower_SE_vec.clear();
 
-    edgeLengths.clear();
+    edgeLengths_vec.clear();
 
-    min_x_values.clear();
-    min_y_values.clear();
-    min_z_values.clear();
+    min_x_values_vec.clear();
+    min_y_values_vec.clear();
+    min_z_values_vec.clear();
 
-    bodyOfNode.clear();
+    bodyOfNode_vec.clear();
 
-    sumMasses.clear();
+    sumMasses_vec.clear();
 
-    centerOfMass_x.clear();
-    centerOfMass_y.clear();
-    centerOfMass_z.clear();
+    centerOfMass_x_vec.clear();
+    centerOfMass_y_vec.clear();
+    centerOfMass_z_vec.clear();
 }
 
 void
@@ -274,36 +297,77 @@ BarnesHutAlgorithm::buildOctree(queue &queue, buffer<double> &current_positions_
 
     host_accessor<double> MASSES(masses);
 
+    host_accessor<std::size_t> UPPER_NW(upper_NW);
+    host_accessor<std::size_t> UPPER_NE(upper_NE);
+    host_accessor<std::size_t> UPPER_SW(upper_SW);
+    host_accessor<std::size_t> UPPER_SE(upper_SE);
+
+    host_accessor<std::size_t> LOWER_NW(lower_NW);
+    host_accessor<std::size_t> LOWER_NE(lower_NE);
+    host_accessor<std::size_t> LOWER_SW(lower_SW);
+    host_accessor<std::size_t> LOWER_SE(lower_SE);
+
+    host_accessor<double> EDGE_LENGTHS(edgeLengths);
+
+    host_accessor<double> MIN_X(min_x_values);
+    host_accessor<double> MIN_Y(min_y_values);
+    host_accessor<double> MIN_Z(min_z_values);
+
+    host_accessor<std::size_t> BODY_OF_NODE(bodyOfNode);
+
+    host_accessor<double> SUM_MASSES(sumOfMasses);
+
+    host_accessor<double> CENTER_OF_MASS_X(massCenters_x);
+    host_accessor<double> CENTER_OF_MASS_Y(massCenters_y);
+    host_accessor<double> CENTER_OF_MASS_Z(massCenters_z);
+
     std::size_t nextFreeNodeID = 0;
     std::size_t currentBody = 0;
 
     maxTreeDepth = 0;
 
+    bool print = false;
+    for (int n = 0; n < 16 * numberOfBodies; n++) {
+        if ((n - 1) % 8 == 0) {
+            print = true;
+        }
+        if (BODY_OF_NODE[n] != 178) {
+            if (print) {
+                std::cout << "-----------------------------" << std::endl;
+                print = false;
+            }
+            std::cout << n << ":  " << BODY_OF_NODE[n] << std::endl;
+        }
+
+
+    }
+
+
     // root node 0: the AABB of all bodies
-    edgeLengths.push_back(AABB_EdgeLength);
-    min_x_values.push_back(min_x);
-    min_y_values.push_back(min_y);
-    min_z_values.push_back(min_z);
+    EDGE_LENGTHS[0] = AABB_EdgeLength;
+    MIN_X[0] = min_x;
+    MIN_Y[0] = min_y;
+    MIN_Z[0] = min_z;
 
     // root has no children yet.
-    upper_NW.push_back(0);
-    upper_NE.push_back(0);
-    upper_SW.push_back(0);
-    upper_SE.push_back(0);
-    lower_NW.push_back(0);
-    lower_NE.push_back(0);
-    lower_SW.push_back(0);
-    lower_SE.push_back(0);
+    UPPER_NW[0] = 0;
+    UPPER_NE[0] = 0;
+    UPPER_SW[0] = 0;
+    UPPER_SE[0] = 0;
+    LOWER_NW[0] = 0;
+    LOWER_NE[0] = 0;
+    LOWER_SW[0] = 0;
+    LOWER_SE[0] = 0;
 
 
-    bodyOfNode.push_back(currentBody); // insert the first body into the root.
+    BODY_OF_NODE[0] = currentBody; // insert the first body into the root.
 
     // initialize sum Masses and centerOfMass vectors
-    sumMasses.push_back(MASSES[currentBody]);
+    SUM_MASSES[0] = MASSES[currentBody];
 
-    centerOfMass_x.push_back(POS_X[currentBody] * MASSES[currentBody]);
-    centerOfMass_y.push_back(POS_Y[currentBody] * MASSES[currentBody]);
-    centerOfMass_z.push_back(POS_Z[currentBody] * MASSES[currentBody]);
+    CENTER_OF_MASS_X[0] = POS_X[currentBody] * MASSES[currentBody];
+    CENTER_OF_MASS_Y[0] = POS_Y[currentBody] * MASSES[currentBody];
+    CENTER_OF_MASS_Z[0] = POS_Z[currentBody] * MASSES[currentBody];
 
     nextFreeNodeID += 1;
 
@@ -313,17 +377,17 @@ BarnesHutAlgorithm::buildOctree(queue &queue, buffer<double> &current_positions_
         std::size_t currentNode = 0;
         bool nodeInserted = false;
         while (!nodeInserted) {
-            if (upper_NW[currentNode] == 0) {
+            if (UPPER_NW[currentNode] == 0) {
                 // the current node is a leaf node
-                if (bodyOfNode[currentNode] == numberOfBodies) {
+                if (BODY_OF_NODE[currentNode] == numberOfBodies) {
                     // the leaf node is empty --> Insert the current body into the current node and set the flag to continue with next body
-                    bodyOfNode[currentNode] = i;
+                    BODY_OF_NODE[currentNode] = i;
 
                     // update sum masses and center of mass
-                    sumMasses[currentNode] += MASSES[i];
-                    centerOfMass_x[currentNode] += POS_X[i] * MASSES[i];
-                    centerOfMass_y[currentNode] += POS_Y[i] * MASSES[i];
-                    centerOfMass_z[currentNode] += POS_Z[i] * MASSES[i];
+                    SUM_MASSES[currentNode] += MASSES[i];
+                    CENTER_OF_MASS_X[currentNode] += POS_X[i] * MASSES[i];
+                    CENTER_OF_MASS_Y[currentNode] += POS_Y[i] * MASSES[i];
+                    CENTER_OF_MASS_Z[currentNode] += POS_Z[i] * MASSES[i];
 
                     if (currentDepth > maxTreeDepth) {
                         maxTreeDepth = currentDepth;
@@ -331,21 +395,25 @@ BarnesHutAlgorithm::buildOctree(queue &queue, buffer<double> &current_positions_
                     nodeInserted = true;
                 } else {
                     // the leaf node already contains a body --> split the node and insert old body
-                    std::size_t bodyIDinNode = bodyOfNode[currentNode];
-                    splitNode(currentNode, nextFreeNodeID);
+                    std::size_t bodyIDinNode = BODY_OF_NODE[currentNode];
+                    splitNode(currentNode, nextFreeNodeID, UPPER_NW, UPPER_NE, UPPER_SW, UPPER_SE, LOWER_NW, LOWER_NE,
+                              LOWER_SW, LOWER_SE, EDGE_LENGTHS, MIN_X, MIN_Y, MIN_Z, BODY_OF_NODE, SUM_MASSES,
+                              CENTER_OF_MASS_X, CENTER_OF_MASS_Y, CENTER_OF_MASS_Z);
                     nextFreeNodeID += 8;
 
                     std::size_t octantID = getOctantContainingBody(POS_X[bodyIDinNode],
                                                                    POS_Y[bodyIDinNode],
-                                                                   POS_Z[bodyIDinNode], currentNode);
+                                                                   POS_Z[bodyIDinNode], currentNode, UPPER_NW, UPPER_NE,
+                                                                   UPPER_SW, UPPER_SE, LOWER_NW, LOWER_NE, LOWER_SW,
+                                                                   LOWER_SE, EDGE_LENGTHS, MIN_X, MIN_Y, MIN_Z);
                     // insert the old body into the new octant it belongs to and remove it from the parent node
-                    bodyOfNode[octantID] = bodyIDinNode;
-                    bodyOfNode[currentNode] = numberOfBodies;
+                    BODY_OF_NODE[octantID] = bodyIDinNode;
+                    BODY_OF_NODE[currentNode] = numberOfBodies;
 
-                    sumMasses[octantID] += MASSES[bodyIDinNode];
-                    centerOfMass_x[octantID] += POS_X[bodyIDinNode] * MASSES[bodyIDinNode];
-                    centerOfMass_y[octantID] += POS_Y[bodyIDinNode] * MASSES[bodyIDinNode];
-                    centerOfMass_z[octantID] += POS_Z[bodyIDinNode] * MASSES[bodyIDinNode];
+                    SUM_MASSES[octantID] += MASSES[bodyIDinNode];
+                    CENTER_OF_MASS_X[octantID] += POS_X[bodyIDinNode] * MASSES[bodyIDinNode];
+                    CENTER_OF_MASS_Y[octantID] += POS_Y[bodyIDinNode] * MASSES[bodyIDinNode];
+                    CENTER_OF_MASS_Z[octantID] += POS_Z[bodyIDinNode] * MASSES[bodyIDinNode];
 
                 }
             } else {
@@ -353,13 +421,15 @@ BarnesHutAlgorithm::buildOctree(queue &queue, buffer<double> &current_positions_
                 // --> determine the octant, the body has to be inserted and set this octant as current node.
 
                 // update sum masses and center of mass of this node, since the current body will be inserted in one of the children
-                sumMasses[currentNode] += MASSES[i];
-                centerOfMass_x[currentNode] += POS_X[i] * MASSES[i];
-                centerOfMass_y[currentNode] += POS_Y[i] * MASSES[i];
-                centerOfMass_z[currentNode] += POS_Z[i] * MASSES[i];
+                SUM_MASSES[currentNode] += MASSES[i];
+                CENTER_OF_MASS_X[currentNode] += POS_X[i] * MASSES[i];
+                CENTER_OF_MASS_Y[currentNode] += POS_Y[i] * MASSES[i];
+                CENTER_OF_MASS_Z[currentNode] += POS_Z[i] * MASSES[i];
 
                 std::size_t octantID = getOctantContainingBody(POS_X[i], POS_Y[i],
-                                                               POS_Z[i], currentNode);
+                                                               POS_Z[i], currentNode, UPPER_NW, UPPER_NE, UPPER_SW,
+                                                               UPPER_SE, LOWER_NW, LOWER_NE, LOWER_SW, LOWER_SE,
+                                                               EDGE_LENGTHS, MIN_X, MIN_Y, MIN_Z);
 
                 currentNode = octantID;
                 currentDepth += 1;
@@ -373,6 +443,401 @@ BarnesHutAlgorithm::buildOctree(queue &queue, buffer<double> &current_positions_
 void BarnesHutAlgorithm::buildOctreeParallel(queue &queue, buffer<double> &current_positions_x,
                                              buffer<double> &current_positions_y, buffer<double> &current_positions_z,
                                              buffer<double> &masses) {
+
+    std::vector<int> nodeIsLocked_vec(16 * numberOfBodies, 0);
+    buffer<int> nodeIsLocked = nodeIsLocked_vec;
+
+    std::vector<std::size_t> nextFreeNodeID_vec(1);
+    buffer<std::size_t> nextFreeNodeID = nextFreeNodeID_vec;
+
+    std::size_t N = numberOfBodies;
+
+    queue.submit([&](handler &h) {
+        accessor<std::size_t> UPPER_NW(upper_NW, h);
+        accessor<std::size_t> UPPER_NE(upper_NE, h);
+        accessor<std::size_t> UPPER_SW(upper_SW, h);
+        accessor<std::size_t> UPPER_SE(upper_SE, h);
+
+        accessor<std::size_t> LOWER_NW(lower_NW, h);
+        accessor<std::size_t> LOWER_NE(lower_NE, h);
+        accessor<std::size_t> LOWER_SW(lower_SW, h);
+        accessor<std::size_t> LOWER_SE(lower_SE, h);
+
+        accessor<double> EDGE_LENGTHS(edgeLengths, h);
+
+        accessor<double> MIN_X(min_x_values, h);
+        accessor<double> MIN_Y(min_y_values, h);
+        accessor<double> MIN_Z(min_z_values, h);
+
+        accessor<std::size_t> NEXT_FREE_NODE_ID(nextFreeNodeID, h);
+
+        accessor<int> NODE_LOCKED(nodeIsLocked, h);
+
+        accessor<double> SUM_MASSES(sumOfMasses, h);
+        accessor<double> CENTER_OF_MASS_X(massCenters_x, h);
+        accessor<double> CENTER_OF_MASS_Y(massCenters_y, h);
+        accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
+
+        accessor<std::size_t> BODY_OF_NODE(bodyOfNode, h);
+
+        double edgeLength = AABB_EdgeLength;
+        double minX = min_x;
+        double minY = min_y;
+        double minZ = min_z;
+        h.single_task([=]() {
+            // root node 0: the AABB of all bodies
+            EDGE_LENGTHS[0] = edgeLength;
+            MIN_X[0] = minX;
+            MIN_Y[0] = minY;
+            MIN_Z[0] = minZ;
+
+            // root has no children yet.
+            UPPER_NW[0] = 0;
+            UPPER_NE[0] = 0;
+            UPPER_SW[0] = 0;
+            UPPER_SE[0] = 0;
+            LOWER_NW[0] = 0;
+            LOWER_NE[0] = 0;
+            LOWER_SW[0] = 0;
+            LOWER_SE[0] = 0;
+
+            NEXT_FREE_NODE_ID[0] = 1;
+
+            NODE_LOCKED[0] = 0;
+
+
+            SUM_MASSES[0] = 0;
+            CENTER_OF_MASS_X[0] = 0;
+            CENTER_OF_MASS_Y[0] = 0;
+            CENTER_OF_MASS_Z[0] = 0;
+
+            BODY_OF_NODE[0] = N;
+        });
+
+    }).wait();
+
+    queue.submit([&](handler &h) {
+
+        int tileSize = 32;// tile size should be of the form 2^x
+
+        // global size of the nd_range kernel has to be divisible by the tile size (local size).
+        // The purpose of the padding is that numberOfBodies + padding is divisible by the tile size.
+        std::size_t padding = tileSize - (numberOfBodies % tileSize);
+
+        accessor<int> NODE_LOCKED(nodeIsLocked, h);
+
+        accessor<double> POS_X(current_positions_x, h);
+        accessor<double> POS_Y(current_positions_y, h);
+        accessor<double> POS_Z(current_positions_z, h);
+
+        accessor<double> MASSES(masses, h);
+
+        accessor<std::size_t> UPPER_NW(upper_NW, h);
+        accessor<std::size_t> UPPER_NE(upper_NE, h);
+        accessor<std::size_t> UPPER_SW(upper_SW, h);
+        accessor<std::size_t> UPPER_SE(upper_SE, h);
+
+        accessor<std::size_t> LOWER_NW(lower_NW, h);
+        accessor<std::size_t> LOWER_NE(lower_NE, h);
+        accessor<std::size_t> LOWER_SW(lower_SW, h);
+        accessor<std::size_t> LOWER_SE(lower_SE, h);
+
+        accessor<double> EDGE_LENGTHS(edgeLengths, h);
+
+        accessor<double> MIN_X(min_x_values, h);
+        accessor<double> MIN_Y(min_y_values, h);
+        accessor<double> MIN_Z(min_z_values, h);
+
+        accessor<std::size_t> BODY_OF_NODE(bodyOfNode, h);
+
+        accessor<double> SUM_MASSES(sumOfMasses, h);
+
+        accessor<double> CENTER_OF_MASS_X(massCenters_x, h);
+        accessor<double> CENTER_OF_MASS_Y(massCenters_y, h);
+        accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
+
+
+        accessor<std::size_t> NEXT_FREE_NODE_ID(nextFreeNodeID, h);
+
+
+
+
+        h.parallel_for(nd_range<1>(range<1>(N ), range<1>(N)), [=](auto &nd_item) {
+//        h.parallel_for(numberOfBodies, [=](auto &i) {
+
+            atomic_ref<std::size_t, memory_order::acq_rel, memory_scope::device,
+                    access::address_space::global_space> nextFreeNodeIDAccessor(NEXT_FREE_NODE_ID[0]);
+
+            int i = nd_item.get_global_id();
+            if (i <N) {
+
+//                for (std::size_t i = 0; i < N; ++i) {
+
+
+
+
+//                std::size_t currentDepth = 0;
+                std::size_t currentNode = 0;
+
+
+                bool nodeInserted = false;
+
+                while (!nodeInserted) {
+
+                    atomic_ref<int, memory_order::acq_rel, memory_scope::device,
+                            access::address_space::global_space> atomicNodeIsLockedAccessor(
+                            NODE_LOCKED[currentNode]);
+                    int exp = 0;
+
+                    if (atomicNodeIsLockedAccessor.compare_exchange_strong(exp, 1, memory_order::acq_rel,
+                                                                           memory_scope::device)) {
+
+                        if (UPPER_NW[currentNode] == 0) {
+                            // the current node is a leaf node
+
+                            // We check if the current node is locked by some other thread. If it is not, this thread locks it and
+                            // continues with the insertion process.
+//                            int exp = 0;
+//                            atomic_ref<int, memory_order::acq_rel, memory_scope::device,
+//                                    access::address_space::global_space> atomicNodeIsLockedAccessor(
+//                                    NODE_LOCKED[currentNode]);
+//                            if (atomicNodeIsLockedAccessor.compare_exchange_strong(exp, 1, memory_order::acq_rel,
+//                                                                                 memory_scope::device)) {
+
+
+                            if (BODY_OF_NODE[currentNode] == N) {
+                                // the leaf node is empty --> Insert the current body into the current node and set the flag to continue with next body
+                                BODY_OF_NODE[currentNode] = i;
+
+                                // update sum masses and center of mass
+                                SUM_MASSES[currentNode] += MASSES[i];
+                                CENTER_OF_MASS_X[currentNode] += POS_X[i] * MASSES[i];
+                                CENTER_OF_MASS_Y[currentNode] += POS_Y[i] * MASSES[i];
+                                CENTER_OF_MASS_Z[currentNode] += POS_Z[i] * MASSES[i];
+                                atomic_fence(memory_order::acq_rel,memory_scope::device);
+
+
+                                nodeInserted = true;
+                            } else {
+                                // the leaf node already contains a body --> split the node and insert old body
+
+
+                                std::size_t bodyIDinNode = BODY_OF_NODE[currentNode];
+
+                                // determine insertion index for the new child nodes and reserve 8 indices
+                                std::size_t firstIndex = nextFreeNodeIDAccessor.fetch_add(8);
+
+
+                                double childEdgeLength = EDGE_LENGTHS[currentNode] / 2;
+
+                                double parent_min_x = MIN_X[currentNode];
+                                double parent_min_y = MIN_Y[currentNode];
+                                double parent_min_z = MIN_Z[currentNode];
+
+
+                                // set the edge lengths of the child nodes
+                                for (std::size_t idx = firstIndex; idx < firstIndex + 8; ++idx) {
+                                    EDGE_LENGTHS[idx] = childEdgeLength;
+                                }
+
+                                // create the 8 new octants
+                                UPPER_NW[currentNode] = firstIndex;
+                                UPPER_NE[currentNode] = firstIndex + 1;
+                                UPPER_SW[currentNode] = firstIndex + 2;
+                                UPPER_SE[currentNode] = firstIndex + 3;
+
+                                LOWER_NW[currentNode] = firstIndex + 4;
+                                LOWER_NE[currentNode] = firstIndex + 5;
+                                LOWER_SW[currentNode] = firstIndex + 6;
+                                LOWER_SE[currentNode] = firstIndex + 7;
+
+
+                                // min x,y,z values of the upperNW child node
+                                MIN_X[firstIndex] = parent_min_x;
+                                MIN_Y[firstIndex] = parent_min_y + childEdgeLength;
+                                MIN_Z[firstIndex] = parent_min_z;
+
+                                // min x,y,z values of the upperNE child node
+                                MIN_X[firstIndex + 1] = parent_min_x + childEdgeLength;
+                                MIN_Y[firstIndex + 1] = parent_min_y + childEdgeLength;
+                                MIN_Z[firstIndex + 1] = parent_min_z;
+
+                                // min x,y,z values of the upperSW child node
+                                MIN_X[firstIndex + 2] = parent_min_x;
+                                MIN_Y[firstIndex + 2] = parent_min_y + childEdgeLength;
+                                MIN_Z[firstIndex + 2] = parent_min_z + childEdgeLength;
+
+                                // min x,y,z values of the upperSE child node
+                                MIN_X[firstIndex + 3] = parent_min_x + childEdgeLength;
+                                MIN_Y[firstIndex + 3] = parent_min_y + childEdgeLength;
+                                MIN_Z[firstIndex + 3] = parent_min_z + childEdgeLength;
+
+                                // min x,y,z values of the lowerNW child node
+                                MIN_X[firstIndex + 4] = parent_min_x;
+                                MIN_Y[firstIndex + 4] = parent_min_y;
+                                MIN_Z[firstIndex + 4] = parent_min_z;
+
+                                // min x,y,z values of the lowerNE child node
+                                MIN_X[firstIndex + 5] = parent_min_x + childEdgeLength;
+                                MIN_Y[firstIndex + 5] = parent_min_y;
+                                MIN_Z[firstIndex + 5] = parent_min_z;
+
+                                // min x,y,z values of the lowerSW child node
+                                MIN_X[firstIndex + 6] = parent_min_x;
+                                MIN_Y[firstIndex + 6] = parent_min_y;
+                                MIN_Z[firstIndex + 6] = parent_min_z + childEdgeLength;
+
+                                // min x,y,z values of the lowerSE child node
+                                MIN_X[firstIndex + 7] = parent_min_x + childEdgeLength;
+                                MIN_Y[firstIndex + 7] = parent_min_y;
+                                MIN_Z[firstIndex + 7] = parent_min_z + childEdgeLength;
+
+                                // initially, the newly created octants will not have any children.
+                                // 0 is also the root node index, but since the root will never be a child of any node, it can be used here to identify
+                                // leaf nodes.
+                                // Furthermore, since these nodes do not contain any bodies yet, the impossible body ID numberOfBodies gets used.
+                                for (std::size_t idx = firstIndex; idx < firstIndex + 8; ++idx) {
+                                    UPPER_NW[idx] = 0;
+                                    UPPER_NE[idx] = 0;
+                                    UPPER_SW[idx] = 0;
+                                    UPPER_SE[idx] = 0;
+                                    LOWER_NW[idx] = 0;
+                                    LOWER_NE[idx] = 0;
+                                    LOWER_SW[idx] = 0;
+                                    LOWER_SE[idx] = 0;
+
+                                    BODY_OF_NODE[idx] = N;
+
+                                    CENTER_OF_MASS_X[idx] = 0;
+                                    CENTER_OF_MASS_Y[idx] = 0;
+                                    CENTER_OF_MASS_Z[idx] = 0;
+
+                                    SUM_MASSES[idx] = 0;
+                                }
+
+                                // determine the new octant for the old body
+                                std::size_t octantID;
+                                double parentMin_x = MIN_X[currentNode];
+                                double parentMin_y = MIN_Y[currentNode];
+                                double parentMin_z = MIN_Z[currentNode];
+                                double parentEdgeLength = EDGE_LENGTHS[currentNode];
+
+                                bool upperPart = POS_Y[bodyIDinNode] > parentMin_y + (parentEdgeLength / 2);
+                                bool rightPart = POS_X[bodyIDinNode] > parentMin_x + (parentEdgeLength / 2);
+                                bool backPart = POS_Z[bodyIDinNode] < parentMin_z + (parentEdgeLength / 2);
+
+                                if (!upperPart && !rightPart && !backPart) {
+                                    octantID = LOWER_SW[currentNode];
+                                } else if (!upperPart && !rightPart && backPart) {
+                                    octantID = LOWER_NW[currentNode];
+                                } else if (!upperPart && rightPart && !backPart) {
+                                    octantID = LOWER_SE[currentNode];
+                                } else if (!upperPart && rightPart && backPart) {
+                                    octantID = LOWER_NE[currentNode];
+                                } else if (upperPart && !rightPart && !backPart) {
+                                    octantID = UPPER_SW[currentNode];
+                                } else if (upperPart && !rightPart && backPart) {
+                                    octantID = UPPER_NW[currentNode];
+                                } else if (upperPart && rightPart && !backPart) {
+                                    octantID = UPPER_SE[currentNode];
+                                } else if (upperPart && rightPart && backPart) {
+                                    octantID = UPPER_NE[currentNode];
+                                }
+
+                                // insert the old body into the new octant it belongs to and remove it from the parent node
+                                BODY_OF_NODE[octantID] = bodyIDinNode;
+                                BODY_OF_NODE[currentNode] = N;
+
+                                SUM_MASSES[octantID] += MASSES[bodyIDinNode];
+                                CENTER_OF_MASS_X[octantID] += POS_X[bodyIDinNode] * MASSES[bodyIDinNode];
+                                CENTER_OF_MASS_Y[octantID] += POS_Y[bodyIDinNode] * MASSES[bodyIDinNode];
+                                CENTER_OF_MASS_Z[octantID] += POS_Z[bodyIDinNode] * MASSES[bodyIDinNode];
+
+                                atomic_fence(memory_order::acq_rel,memory_scope::device);
+
+
+
+
+                            }
+
+                            // free the node and expose new subtree
+//                                atomicNodeIsLockedAccessor.fetch_sub(1, memory_order::acq_rel, memory_scope::device);
+
+
+//                            }
+                        } else {
+                            // the current node is not a leaf node, i.e. it has 8 children
+                            // --> determine the octant, the body has to be inserted and set this octant as current node.
+
+
+//                            int exp = 0;
+//                            atomic_ref<int, memory_order::acq_rel, memory_scope::device,
+//                                    access::address_space::global_space> atomicNodeIsLockedAccessor(
+//                                    NODE_LOCKED[currentNode]);
+
+//                            bool descentPossible = false;
+//                            while (!descentPossible) {
+//                                if (atomicNodeIsLockedAccessor.compare_exchange_strong(exp, 1, memory_order::acq_rel,
+//                                                                                     memory_scope::device)) {
+                            // if no other Thread currently works on this node
+                            std::size_t octantID;
+                            double parentMin_x = MIN_X[currentNode];
+                            double parentMin_y = MIN_Y[currentNode];
+                            double parentMin_z = MIN_Z[currentNode];
+                            double parentEdgeLength = EDGE_LENGTHS[currentNode];
+
+                            bool upperPart = POS_Y[i] > parentMin_y + (parentEdgeLength / 2);
+                            bool rightPart = POS_X[i] > parentMin_x + (parentEdgeLength / 2);
+                            bool backPart = POS_Z[i] < parentMin_z + (parentEdgeLength / 2);
+
+                            if (!upperPart && !rightPart && !backPart) {
+                                octantID = LOWER_SW[currentNode];
+                            } else if (!upperPart && !rightPart && backPart) {
+                                octantID = LOWER_NW[currentNode];
+                            } else if (!upperPart && rightPart && !backPart) {
+                                octantID = LOWER_SE[currentNode];
+                            } else if (!upperPart && rightPart && backPart) {
+                                octantID = LOWER_NE[currentNode];
+                            } else if (upperPart && !rightPart && !backPart) {
+                                octantID = UPPER_SW[currentNode];
+                            } else if (upperPart && !rightPart && backPart) {
+                                octantID = UPPER_NW[currentNode];
+                            } else if (upperPart && rightPart && !backPart) {
+                                octantID = UPPER_SE[currentNode];
+                            } else if (upperPart && rightPart && backPart) {
+                                octantID = UPPER_NE[currentNode];
+                            }
+
+
+                            currentNode = octantID;
+//                                currentDepth += 1;
+//                                    descentPossible = true;
+                            // update sum masses and center of mass of this node, since the current body will be inserted in one of the children
+                            SUM_MASSES[currentNode] += MASSES[i];
+                            CENTER_OF_MASS_X[currentNode] += POS_X[i] * MASSES[i];
+                            CENTER_OF_MASS_Y[currentNode] += POS_Y[i] * MASSES[i];
+                            CENTER_OF_MASS_Z[currentNode] += POS_Z[i] * MASSES[i];
+                            atomic_fence(memory_order::acq_rel,memory_scope::device);
+
+
+
+//                                    atomicNodeIsLockedAccessor.fetch_sub(1, memory_order::acq_rel, memory_scope::device);
+//                                }
+//                            }
+                        }
+
+
+                        atomicNodeIsLockedAccessor.fetch_sub(1, memory_order::acq_rel, memory_scope::device);
+
+
+                    }
+
+
+                }
+//                }
+            }
+        });
+    }).wait();
 
 
 }
@@ -454,93 +919,132 @@ void BarnesHutAlgorithm::computeMinMaxValuesAABB(queue &queue, buffer<double> &c
 
 }
 
-void BarnesHutAlgorithm::splitNode(std::size_t nodeID, std::size_t firstIndex) {
+void BarnesHutAlgorithm::splitNode(std::size_t nodeID, std::size_t firstIndex, host_accessor<std::size_t> UPPER_NW,
+                                   host_accessor<std::size_t> UPPER_NE,
+                                   host_accessor<std::size_t> UPPER_SW,
+                                   host_accessor<std::size_t> UPPER_SE,
+                                   host_accessor<std::size_t> LOWER_NW,
+                                   host_accessor<std::size_t> LOWER_NE,
+                                   host_accessor<std::size_t> LOWER_SW,
+                                   host_accessor<std::size_t> LOWER_SE,
+                                   host_accessor<double> EDGE_LENGTHS,
+                                   host_accessor<double> MIN_X,
+                                   host_accessor<double> MIN_Y,
+                                   host_accessor<double> MIN_Z,
+                                   host_accessor<std::size_t> BODY_OF_NODE,
+                                   host_accessor<double> SUM_MASSES,
+                                   host_accessor<double> CENTER_OF_MASS_X,
+                                   host_accessor<double> CENTER_OF_MASS_Y,
+                                   host_accessor<double> CENTER_OF_MASS_Z) {
+//    host_accessor<std::size_t> UPPER_NW(upper_NW);
+//    host_accessor<std::size_t> UPPER_NE(upper_NE);
+//    host_accessor<std::size_t> UPPER_SW(upper_SW);
+//    host_accessor<std::size_t> UPPER_SE(upper_SE);
+//
+//    host_accessor<std::size_t> LOWER_NW(lower_NW);
+//    host_accessor<std::size_t> LOWER_NE(lower_NE);
+//    host_accessor<std::size_t> LOWER_SW(lower_SW);
+//    host_accessor<std::size_t> LOWER_SE(lower_SE);
+//
+//    host_accessor<double> EDGE_LENGTHS(edgeLengths);
+//
+//    host_accessor<double> MIN_X(min_x_values);
+//    host_accessor<double> MIN_Y(min_y_values);
+//    host_accessor<double> MIN_Z(min_z_values);
+//
+//    host_accessor<std::size_t> BODY_OF_NODE(bodyOfNode);
+//
+//    host_accessor<double> SUM_MASSES(sumOfMasses);
+//
+//    host_accessor<double> CENTER_OF_MASS_X(massCenters_x);
+//    host_accessor<double> CENTER_OF_MASS_Y(massCenters_y);
+//    host_accessor<double> CENTER_OF_MASS_Z(massCenters_z);
 
-    double childEdgeLength = edgeLengths[nodeID] / 2;
+    double childEdgeLength = EDGE_LENGTHS[nodeID] / 2;
 
-    double parent_min_x = min_x_values[nodeID];
-    double parent_min_y = min_y_values[nodeID];
-    double parent_min_z = min_z_values[nodeID];
+    double parent_min_x = MIN_X[nodeID];
+    double parent_min_y = MIN_Y[nodeID];
+    double parent_min_z = MIN_Z[nodeID];
 
 
     // set the edge lengths of the child nodes
-    for (int i = 0; i < 8; ++i) {
-        edgeLengths.push_back(childEdgeLength);
+    for (std::size_t i = firstIndex; i < firstIndex + 8; ++i) {
+        EDGE_LENGTHS[i] = childEdgeLength;
     }
 
     // create the 8 new octants
-    upper_NW[nodeID] = firstIndex;
-    upper_NE[nodeID] = firstIndex + 1;
-    upper_SW[nodeID] = firstIndex + 2;
-    upper_SE[nodeID] = firstIndex + 3;
+    UPPER_NW[nodeID] = firstIndex;
+    UPPER_NE[nodeID] = firstIndex + 1;
+    UPPER_SW[nodeID] = firstIndex + 2;
+    UPPER_SE[nodeID] = firstIndex + 3;
 
-    lower_NW[nodeID] = firstIndex + 4;
-    lower_NE[nodeID] = firstIndex + 5;
-    lower_SW[nodeID] = firstIndex + 6;
-    lower_SE[nodeID] = firstIndex + 7;
+    LOWER_NW[nodeID] = firstIndex + 4;
+    LOWER_NE[nodeID] = firstIndex + 5;
+    LOWER_SW[nodeID] = firstIndex + 6;
+    LOWER_SE[nodeID] = firstIndex + 7;
 
 
     // min x,y,z values of the upperNW child node
-    min_x_values.push_back(parent_min_x);
-    min_y_values.push_back(parent_min_y + childEdgeLength);
-    min_z_values.push_back(parent_min_z);
+    MIN_X[firstIndex] = parent_min_x;
+    MIN_Y[firstIndex] = parent_min_y + childEdgeLength;
+    MIN_Z[firstIndex] = parent_min_z;
 
     // min x,y,z values of the upperNE child node
-    min_x_values.push_back(parent_min_x + childEdgeLength);
-    min_y_values.push_back(parent_min_y + childEdgeLength);
-    min_z_values.push_back(parent_min_z);
+    MIN_X[firstIndex + 1] = parent_min_x + childEdgeLength;
+    MIN_Y[firstIndex + 1] = parent_min_y + childEdgeLength;
+    MIN_Z[firstIndex + 1] = parent_min_z;
 
     // min x,y,z values of the upperSW child node
-    min_x_values.push_back(parent_min_x);
-    min_y_values.push_back(parent_min_y + childEdgeLength);
-    min_z_values.push_back(parent_min_z + childEdgeLength);
+    MIN_X[firstIndex + 2] = parent_min_x;
+    MIN_Y[firstIndex + 2] = parent_min_y + childEdgeLength;
+    MIN_Z[firstIndex + 2] = parent_min_z + childEdgeLength;
 
     // min x,y,z values of the upperSE child node
-    min_x_values.push_back(parent_min_x + childEdgeLength);
-    min_y_values.push_back(parent_min_y + childEdgeLength);
-    min_z_values.push_back(parent_min_z + childEdgeLength);
+    MIN_X[firstIndex + 3] = parent_min_x + childEdgeLength;
+    MIN_Y[firstIndex + 3] = parent_min_y + childEdgeLength;
+    MIN_Z[firstIndex + 3] = parent_min_z + childEdgeLength;
 
     // min x,y,z values of the lowerNW child node
-    min_x_values.push_back(parent_min_x);
-    min_y_values.push_back(parent_min_y);
-    min_z_values.push_back(parent_min_z);
+    MIN_X[firstIndex + 4] = parent_min_x;
+    MIN_Y[firstIndex + 4] = parent_min_y;
+    MIN_Z[firstIndex + 4] = parent_min_z;
 
     // min x,y,z values of the lowerNE child node
-    min_x_values.push_back(parent_min_x + childEdgeLength);
-    min_y_values.push_back(parent_min_y);
-    min_z_values.push_back(parent_min_z);
+    MIN_X[firstIndex + 5] = parent_min_x + childEdgeLength;
+    MIN_Y[firstIndex + 5] = parent_min_y;
+    MIN_Z[firstIndex + 5] = parent_min_z;
 
     // min x,y,z values of the lowerSW child node
-    min_x_values.push_back(parent_min_x);
-    min_y_values.push_back(parent_min_y);
-    min_z_values.push_back(parent_min_z + childEdgeLength);
+    MIN_X[firstIndex + 6] = parent_min_x;
+    MIN_Y[firstIndex + 6] = parent_min_y;
+    MIN_Z[firstIndex + 6] = parent_min_z + childEdgeLength;
 
     // min x,y,z values of the lowerSE child node
-    min_x_values.push_back(parent_min_x + childEdgeLength);
-    min_y_values.push_back(parent_min_y);
-    min_z_values.push_back(parent_min_z + childEdgeLength);
+    MIN_X[firstIndex + 7] = parent_min_x + childEdgeLength;
+    MIN_Y[firstIndex + 7] = parent_min_y;
+    MIN_Z[firstIndex + 7] = parent_min_z + childEdgeLength;
 
     // initially, the newly created octants will not have any children.
     // 0 is also the root node index, but since the root will never be a child of any node, it can be used here to identify
     // leaf nodes.
     // Furthermore, since these nodes do not contain any bodies yet, the impossible body ID numberOfBodies gets used.
-    for (int i = 0; i < 8; i++) {
-        upper_NW.push_back(0);
-        upper_NE.push_back(0);
-        upper_SW.push_back(0);
-        upper_SE.push_back(0);
-        lower_NW.push_back(0);
-        lower_NE.push_back(0);
-        lower_SW.push_back(0);
-        lower_SE.push_back(0);
+    for (std::size_t i = firstIndex; i < firstIndex + 8; ++i) {
+        UPPER_NW[i] = 0;
+        UPPER_NE[i] = 0;
+        UPPER_SW[i] = 0;
+        UPPER_SE[i] = 0;
+        LOWER_NW[i] = 0;
+        LOWER_NE[i] = 0;
+        LOWER_SW[i] = 0;
+        LOWER_SE[i] = 0;
 
-        bodyOfNode.push_back(numberOfBodies);
+        BODY_OF_NODE[i] = numberOfBodies;
 
-        centerOfMass_x.push_back(0);
-        centerOfMass_y.push_back(0);
-        centerOfMass_z.push_back(0);
+        CENTER_OF_MASS_X[i] = 0;
+        CENTER_OF_MASS_Y[i] = 0;
+        CENTER_OF_MASS_Z[i] = 0;
 
-        sumMasses.push_back(0);
+        SUM_MASSES[i] = 0;
     }
 
 
@@ -548,32 +1052,60 @@ void BarnesHutAlgorithm::splitNode(std::size_t nodeID, std::size_t firstIndex) {
 
 std::size_t
 BarnesHutAlgorithm::getOctantContainingBody(double body_position_x, double body_position_y, double body_position_z,
-                                            std::size_t parentNodeID) {
-    double parentMin_x = min_x_values[parentNodeID];
-    double parentMin_y = min_y_values[parentNodeID];
-    double parentMin_z = min_z_values[parentNodeID];
-    double parentEdgeLength = edgeLengths[parentNodeID];
+                                            std::size_t parentNodeID, host_accessor<std::size_t> UPPER_NW,
+                                            host_accessor<std::size_t> UPPER_NE,
+                                            host_accessor<std::size_t> UPPER_SW,
+                                            host_accessor<std::size_t> UPPER_SE,
+                                            host_accessor<std::size_t> LOWER_NW,
+                                            host_accessor<std::size_t> LOWER_NE,
+                                            host_accessor<std::size_t> LOWER_SW,
+                                            host_accessor<std::size_t> LOWER_SE,
+                                            host_accessor<double> EDGE_LENGTHS,
+                                            host_accessor<double> MIN_X,
+                                            host_accessor<double> MIN_Y,
+                                            host_accessor<double> MIN_Z) {
+//    host_accessor<std::size_t> UPPER_NW(upper_NW);
+//    host_accessor<std::size_t> UPPER_NE(upper_NE);
+//    host_accessor<std::size_t> UPPER_SW(upper_SW);
+//    host_accessor<std::size_t> UPPER_SE(upper_SE);
+//
+//    host_accessor<std::size_t> LOWER_NW(lower_NW);
+//    host_accessor<std::size_t> LOWER_NE(lower_NE);
+//    host_accessor<std::size_t> LOWER_SW(lower_SW);
+//    host_accessor<std::size_t> LOWER_SE(lower_SE);
+//
+//    host_accessor<double> MIN_X(min_x_values);
+//    host_accessor<double> MIN_Y(min_y_values);
+//    host_accessor<double> MIN_Z(min_z_values);
+//
+//    host_accessor<double> EDGE_LENGTHS(edgeLengths);
+
+
+    double parentMin_x = MIN_X[parentNodeID];
+    double parentMin_y = MIN_Y[parentNodeID];
+    double parentMin_z = MIN_Z[parentNodeID];
+    double parentEdgeLength = EDGE_LENGTHS[parentNodeID];
 
     bool upperPart = body_position_y > parentMin_y + (parentEdgeLength / 2);
     bool rightPart = body_position_x > parentMin_x + (parentEdgeLength / 2);
     bool backPart = body_position_z < parentMin_z + (parentEdgeLength / 2);
 
     if (!upperPart && !rightPart && !backPart) {
-        return lower_SW[parentNodeID];
+        return LOWER_SW[parentNodeID];
     } else if (!upperPart && !rightPart && backPart) {
-        return lower_NW[parentNodeID];
+        return LOWER_NW[parentNodeID];
     } else if (!upperPart && rightPart && !backPart) {
-        return lower_SE[parentNodeID];
+        return LOWER_SE[parentNodeID];
     } else if (!upperPart && rightPart && backPart) {
-        return lower_NE[parentNodeID];
+        return LOWER_NE[parentNodeID];
     } else if (upperPart && !rightPart && !backPart) {
-        return upper_SW[parentNodeID];
+        return UPPER_SW[parentNodeID];
     } else if (upperPart && !rightPart && backPart) {
-        return upper_NW[parentNodeID];
+        return UPPER_NW[parentNodeID];
     } else if (upperPart && rightPart && !backPart) {
-        return upper_SE[parentNodeID];
+        return UPPER_SE[parentNodeID];
     } else if (upperPart && rightPart && backPart) {
-        return upper_NE[parentNodeID];
+        return UPPER_NE[parentNodeID];
     } else {
         throw std::runtime_error("This state should not be reachable");
     }
@@ -588,38 +1120,16 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
 
     auto begin = std::chrono::steady_clock::now();
 
-    std::size_t stackSize = (8 * maxTreeDepth); // determine the stack size for each work item
+    maxTreeDepth = 50;
 
+    std::size_t stackSize = (8 * maxTreeDepth); // determine the stack size for each work item
 
     std::vector<std::size_t> nodesOnStack_vec(stackSize * numberOfBodies, bodyOfNode.size());
 
+    buffer<std::size_t> nodesOnStack = nodesOnStack_vec;
 //    std::vector<std::size_t> test(numberOfBodies);
 //    buffer<std::size_t> testBuff = test;
 
-    buffer<std::size_t> nodesOnStack = nodesOnStack_vec;
-
-    buffer<double> currentEdgeLengths = edgeLengths;
-
-    buffer<double> sumOfMasses = sumMasses;
-
-    buffer<double> massCenters_x = centerOfMass_x;
-    buffer<double> massCenters_y = centerOfMass_y;
-    buffer<double> massCenters_z = centerOfMass_z;
-
-    buffer<std::size_t> upper_NW_buffer = upper_NW;
-    buffer<std::size_t> upper_NE_buffer = upper_NE;
-    buffer<std::size_t> upper_SW_buffer = upper_SW;
-    buffer<std::size_t> upper_SE_buffer = upper_SE;
-    buffer<std::size_t> lower_NW_buffer = lower_NW;
-    buffer<std::size_t> lower_NE_buffer = lower_NE;
-    buffer<std::size_t> lower_SW_buffer = lower_SW;
-    buffer<std::size_t> lower_SE_buffer = lower_SE;
-
-    buffer<std::size_t> bodyOfNode_buffer = bodyOfNode;
-
-    buffer<double> min_x_values_buffer = min_x_values;
-    buffer<double> min_y_values_buffer = min_y_values;
-    buffer<double> min_z_values_buffer = min_z_values;
 
     double epsilon_2 = pow(10, -22);
 
@@ -637,27 +1147,27 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
         accessor<double> ACC_Y(acceleration_y, h);
         accessor<double> ACC_Z(acceleration_z, h);
 
-        accessor<double> EDGE_LENGTHS(currentEdgeLengths, h);
+        accessor<double> EDGE_LENGTHS(edgeLengths, h);
         accessor<double> CENTER_OF_MASS_X(massCenters_x, h);
         accessor<double> CENTER_OF_MASS_Y(massCenters_y, h);
         accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
 
-        accessor<std::size_t> UPPER_NW(upper_NW_buffer, h);
-        accessor<std::size_t> UPPER_NE(upper_NE_buffer, h);
-        accessor<std::size_t> UPPER_SW(upper_SW_buffer, h);
-        accessor<std::size_t> UPPER_SE(upper_SE_buffer, h);
-        accessor<std::size_t> LOWER_NW(lower_NW_buffer, h);
-        accessor<std::size_t> LOWER_NE(lower_NE_buffer, h);
-        accessor<std::size_t> LOWER_SW(lower_SW_buffer, h);
-        accessor<std::size_t> LOWER_SE(lower_SE_buffer, h);
+        accessor<std::size_t> UPPER_NW(upper_NW, h);
+        accessor<std::size_t> UPPER_NE(upper_NE, h);
+        accessor<std::size_t> UPPER_SW(upper_SW, h);
+        accessor<std::size_t> UPPER_SE(upper_SE, h);
+        accessor<std::size_t> LOWER_NW(lower_NW, h);
+        accessor<std::size_t> LOWER_NE(lower_NE, h);
+        accessor<std::size_t> LOWER_SW(lower_SW, h);
+        accessor<std::size_t> LOWER_SE(lower_SE, h);
 
 //        accessor<std::size_t> TestACC(testBuff, h);
 
-        accessor<std::size_t> BODY_OF_NODE(bodyOfNode_buffer, h);
+        accessor<std::size_t> BODY_OF_NODE(bodyOfNode, h);
 
-        accessor<double> MIN_X(min_x_values_buffer, h);
-        accessor<double> MIN_Y(min_y_values_buffer, h);
-        accessor<double> MIN_Z(min_z_values_buffer, h);
+        accessor<double> MIN_X(min_x_values, h);
+        accessor<double> MIN_Y(min_y_values, h);
+        accessor<double> MIN_Z(min_z_values, h);
 
         accessor<std::size_t> NODES_ON_STACK(nodesOnStack, h);
 
