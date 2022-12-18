@@ -98,6 +98,10 @@ public:
     void buildOctreeParallel(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
                              buffer<double> &current_positions_z, buffer<double> &masses);
 
+    void computeMasses(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
+                             buffer<double> &current_positions_z, buffer<double> &masses);
+
+
 
     /*
      * This function computes the minimum and maximum x,y,z values of the positions in the simulation data
