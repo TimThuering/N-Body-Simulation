@@ -70,7 +70,6 @@ public:
     std::vector<double> sumMasses_vec;
     buffer<double> sumOfMasses = sumMasses_vec;
 
-
     // the center of the masses of all bodies in the respective octants (only contain the numerator --> have to be divided by the corresponding sum of masses)
     std::vector<double> centerOfMass_x_vec;
     std::vector<double> centerOfMass_y_vec;
@@ -79,6 +78,14 @@ public:
     buffer<double> massCenters_x = centerOfMass_x_vec;
     buffer<double> massCenters_y = centerOfMass_y_vec;
     buffer<double> massCenters_z = centerOfMass_z_vec;
+
+
+    std::vector<int> subtreeOfBodyID_vec;
+    buffer<int> subtreeOfBodyID = subtreeOfBodyID_vec;
+
+    std::vector<int> nodeIsLocked_vec;
+    buffer<int> nodeIsLocked = nodeIsLocked_vec;
+
 
     BarnesHutAlgorithm(double dt, double tEnd, double visualizationStepWidth, std::string &outputDirectory,
                        std::size_t numberOfBodies);
@@ -98,7 +105,7 @@ public:
     void buildOctreeParallel(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
                              buffer<double> &current_positions_z, buffer<double> &masses);
 
-    void computeMasses(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
+    void buildOctreeParallel2(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
                              buffer<double> &current_positions_z, buffer<double> &masses);
 
 
