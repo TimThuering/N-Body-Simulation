@@ -5,6 +5,7 @@
 #include <map>
 #include <cmath>
 #include "SimulationData.hpp"
+#include "TimeMeasurement.hpp"
 #include <sycl/sycl.hpp>
 
 using namespace sycl;
@@ -25,6 +26,7 @@ public:
     std::size_t numberOfBodies; // total number of bodies
     double G;
 
+    TimeMeasurement timer;
 
     // maps simulation step to computed position values
     std::map<std::size_t, std::vector<double>> positions_x;

@@ -1,9 +1,9 @@
 #include "nBodyAlgorithm.hpp"
 #include <iostream>
-#include <fstream>
 #include <ctime>
 #include <algorithm>
 #include <filesystem>
+#include "TimeMeasurement.hpp"
 
 void nBodyAlgorithm::computeEnergy(queue &queue, buffer<double> &masses, std::size_t currentStep,
                                    buffer<double> &currentPositions_x,
@@ -135,6 +135,9 @@ void nBodyAlgorithm::generateParaViewOutput(const SimulationData &simulationData
 
     // create the directory for the output files
     std::filesystem::create_directory(filePathBase);
+
+    // export the all timings as json file
+    timer.exportJSON(filePathBase + "times.json");
 
     // generate the .pvd file for this simulation
     std::ofstream pvdFile(filePathBase + "/simulation" + ".pvd");

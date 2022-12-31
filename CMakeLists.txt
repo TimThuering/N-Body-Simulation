@@ -19,7 +19,7 @@ add_executable(N_Body_Simulation
         src/simulationData/InputParser.cpp
         src/simulationBackend/NaiveAlgorithm.cpp
         src/simulationBackend/nBodyAlgorithm.cpp
-        src/utility/TimeConverter.cpp src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.hpp)
+        src/utility/TimeConverter.cpp src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.hpp src/utility/TimeMeasurement.cpp src/utility/TimeMeasurement.hpp)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -39,7 +39,8 @@ add_executable(InputParserTest
 add_executable(BarnesHutTest
         tests/BarnesHutTest.cpp
         src/simulationBackend/nBodyAlgorithm.cpp
-        src/simulationBackend/BarnesHutAlgorithm.cpp)
+        src/simulationBackend/BarnesHutAlgorithm.cpp
+        src/utility/TimeMeasurement.cpp)
 
 enable_testing()
 include(GoogleTest)

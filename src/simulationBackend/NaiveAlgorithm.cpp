@@ -58,6 +58,9 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
     // current visualization step of the simulation
     std::size_t currentStep = 0;
 
+    // timer for time tracking
+    timer.addTimingSequence("Acceleration Kernel Time");
+
     // start of the simulation:
     // computations for initial state: all values get stored for the output
 
@@ -299,4 +302,5 @@ void NaiveAlgorithm::computeAccelerationsGPU(queue &queue, buffer<double> &masse
     std::cout << "Acceleration Kernel Time:  "
               << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
               << std::endl;
+    timer.addTimeToSequence("Acceleration Kernel Time",std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
 }
