@@ -18,6 +18,7 @@ BarnesHutAlgorithm::BarnesHutAlgorithm(double dt, double tEnd, double visualizat
           lower_NE_vec(16 * numberOfBodies),
           lower_SW_vec(16 * numberOfBodies),
           lower_SE_vec(16 * numberOfBodies),
+          octants_vec(16 * 8 * numberOfBodies),
           edgeLengths_vec(16 * numberOfBodies),
           min_x_values_vec(16 * numberOfBodies),
           min_y_values_vec(16 * numberOfBodies),
@@ -1147,15 +1148,17 @@ void BarnesHutAlgorithm::buildOctreeParallel2(queue &queue, buffer<double> &curr
     std::size_t N = numberOfBodies;
 
     queue.submit([&](handler &h) {
-        accessor<std::size_t> UPPER_NW(upper_NW, h);
-        accessor<std::size_t> UPPER_NE(upper_NE, h);
-        accessor<std::size_t> UPPER_SW(upper_SW, h);
-        accessor<std::size_t> UPPER_SE(upper_SE, h);
+        //accessor<std::size_t> UPPER_NW(upper_NW, h);
+        //accessor<std::size_t> UPPER_NE(upper_NE, h);
+        //accessor<std::size_t> UPPER_SW(upper_SW, h);
+        //accessor<std::size_t> UPPER_SE(upper_SE, h);
 
-        accessor<std::size_t> LOWER_NW(lower_NW, h);
-        accessor<std::size_t> LOWER_NE(lower_NE, h);
-        accessor<std::size_t> LOWER_SW(lower_SW, h);
-        accessor<std::size_t> LOWER_SE(lower_SE, h);
+        //accessor<std::size_t> LOWER_NW(lower_NW, h);
+        //accessor<std::size_t> LOWER_NE(lower_NE, h);
+        //accessor<std::size_t> LOWER_SW(lower_SW, h);
+        //accessor<std::size_t> LOWER_SE(lower_SE, h);
+
+        accessor<std::size_t> OCTANTS(octants, h);
 
         accessor<double> EDGE_LENGTHS(edgeLengths, h);
 
@@ -1186,14 +1189,14 @@ void BarnesHutAlgorithm::buildOctreeParallel2(queue &queue, buffer<double> &curr
             MIN_Z[0] = minZ;
 
             // root has no children yet.
-            UPPER_NW[0] = 0;
-            UPPER_NE[0] = 0;
-            UPPER_SW[0] = 0;
-            UPPER_SE[0] = 0;
-            LOWER_NW[0] = 0;
-            LOWER_NE[0] = 0;
-            LOWER_SW[0] = 0;
-            LOWER_SE[0] = 0;
+            OCTANTS[5 * 16 * N] = 0;
+            OCTANTS[7 * 16 * N] = 0;
+            OCTANTS[4 * 16 * N] = 0;
+            OCTANTS[6 * 16 * N] = 0;
+            OCTANTS[1 * 16 * N] = 0;
+            OCTANTS[3 * 16 * N] = 0;
+            OCTANTS[0] = 0;
+            OCTANTS[2 * 16 * N] = 0;
 
             NEXT_FREE_NODE_ID[0] = 1;
 
@@ -1228,15 +1231,17 @@ void BarnesHutAlgorithm::buildOctreeParallel2(queue &queue, buffer<double> &curr
 
         accessor<double> MASSES(masses, h);
 
-        accessor<std::size_t> UPPER_NW(upper_NW, h);
-        accessor<std::size_t> UPPER_NE(upper_NE, h);
-        accessor<std::size_t> UPPER_SW(upper_SW, h);
-        accessor<std::size_t> UPPER_SE(upper_SE, h);
+        //accessor<std::size_t> UPPER_NW(upper_NW, h);
+        //accessor<std::size_t> UPPER_NE(upper_NE, h);
+        //accessor<std::size_t> UPPER_SW(upper_SW, h);
+        //accessor<std::size_t> UPPER_SE(upper_SE, h);
 
-        accessor<std::size_t> LOWER_NW(lower_NW, h);
-        accessor<std::size_t> LOWER_NE(lower_NE, h);
-        accessor<std::size_t> LOWER_SW(lower_SW, h);
-        accessor<std::size_t> LOWER_SE(lower_SE, h);
+        //accessor<std::size_t> LOWER_NW(lower_NW, h);
+        //accessor<std::size_t> LOWER_NE(lower_NE, h);
+        //accessor<std::size_t> LOWER_SW(lower_SW, h);
+        //accessor<std::size_t> LOWER_SE(lower_SE, h);
+
+        accessor<std::size_t> OCTANTS(octants, h);
 
         accessor<double> EDGE_LENGTHS(edgeLengths, h);
 
@@ -1292,7 +1297,7 @@ void BarnesHutAlgorithm::buildOctreeParallel2(queue &queue, buffer<double> &curr
                         if (atomicNodeIsLockedAccessor.compare_exchange_strong(exp, 1, memory_order::acq_rel,
                                                                                memory_scope::device)) {
 
-                            if (UPPER_NW[currentNode] == 0) {
+                            if (OCTANTS[currentNode] == 0) {
                                 // the current node is a leaf node
 
                                 if (BODY_OF_NODE[currentNode] == N) {
@@ -1330,15 +1335,15 @@ void BarnesHutAlgorithm::buildOctreeParallel2(queue &queue, buffer<double> &curr
                                     }
 
                                     // create the 8 new octants
-                                    UPPER_NW[currentNode] = firstIndex;
-                                    UPPER_NE[currentNode] = firstIndex + 1;
-                                    UPPER_SW[currentNode] = firstIndex + 2;
-                                    UPPER_SE[currentNode] = firstIndex + 3;
+                                    OCTANTS[5 * 16 * N + currentNode] = firstIndex;
+                                    OCTANTS[7 * 16 * N + currentNode] = firstIndex + 1;
+                                    OCTANTS[4 * 16 * N + currentNode] = firstIndex + 2;
+                                    OCTANTS[6 * 16 * N + currentNode] = firstIndex + 3;
 
-                                    LOWER_NW[currentNode] = firstIndex + 4;
-                                    LOWER_NE[currentNode] = firstIndex + 5;
-                                    LOWER_SW[currentNode] = firstIndex + 6;
-                                    LOWER_SE[currentNode] = firstIndex + 7;
+                                    OCTANTS[1 * 16 * N + currentNode] = firstIndex + 4;
+                                    OCTANTS[3 * 16 * N + currentNode] = firstIndex + 5;
+                                    OCTANTS[0 + currentNode] = firstIndex + 6;
+                                    OCTANTS[2 * 16 * N + currentNode] = firstIndex + 7;
 
 
                                     // min x,y,z values of the upperNW child node
@@ -1386,14 +1391,14 @@ void BarnesHutAlgorithm::buildOctreeParallel2(queue &queue, buffer<double> &curr
                                     // leaf nodes.
                                     // Furthermore, since these nodes do not contain any bodies yet, the impossible body ID numberOfBodies gets used.
                                     for (std::size_t idx = firstIndex; idx < firstIndex + 8; ++idx) {
-                                        UPPER_NW[idx] = 0;
-                                        UPPER_NE[idx] = 0;
-                                        UPPER_SW[idx] = 0;
-                                        UPPER_SE[idx] = 0;
-                                        LOWER_NW[idx] = 0;
-                                        LOWER_NE[idx] = 0;
-                                        LOWER_SW[idx] = 0;
-                                        LOWER_SE[idx] = 0;
+                                        OCTANTS[5 * 16 * N + idx] = 0;
+                                        OCTANTS[7 * 16 * N + idx] = 0;
+                                        OCTANTS[4 * 16 * N + idx] = 0;
+                                        OCTANTS[6 * 16 * N + idx] = 0;
+                                        OCTANTS[1 * 16 * N + idx] = 0;
+                                        OCTANTS[3 * 16 * N + idx] = 0;
+                                        OCTANTS[0 + idx] = 0;
+                                        OCTANTS[2 * 16 * N + idx] = 0;
 
                                         BODY_OF_NODE[idx] = N;
 
@@ -1415,6 +1420,18 @@ void BarnesHutAlgorithm::buildOctreeParallel2(queue &queue, buffer<double> &curr
                                     bool rightPart = POS_X[bodyIDinNode] > parentMin_x + (parentEdgeLength / 2);
                                     bool backPart = POS_Z[bodyIDinNode] < parentMin_z + (parentEdgeLength / 2);
 
+                                    // interpret as binary and convert into decimal
+                                    std::size_t octantAddress =
+                                            ((int) upperPart) * 4 + ((int) rightPart) * 2 + ((int) backPart) * 1;
+                                    // find start index of octant type
+                                    octantAddress = octantAddress * 16 * N;
+
+                                    // get octant of current Node
+                                    octantAddress = octantAddress + currentNode;
+
+                                    octantID = OCTANTS[octantAddress];
+
+                                    /*
                                     if (!upperPart && !rightPart && !backPart) {
                                         octantID = LOWER_SW[currentNode];
                                     } else if (!upperPart && !rightPart && backPart) {
@@ -1432,6 +1449,7 @@ void BarnesHutAlgorithm::buildOctreeParallel2(queue &queue, buffer<double> &curr
                                     } else if (upperPart && rightPart && backPart) {
                                         octantID = UPPER_NE[currentNode];
                                     }
+                                     */
 
                                     // insert the old body into the new octant it belongs to and remove it from the parent node
                                     BODY_OF_NODE[octantID] = bodyIDinNode;
@@ -1458,6 +1476,19 @@ void BarnesHutAlgorithm::buildOctreeParallel2(queue &queue, buffer<double> &curr
                                 bool rightPart = POS_X[i] > parentMin_x + (parentEdgeLength / 2);
                                 bool backPart = POS_Z[i] < parentMin_z + (parentEdgeLength / 2);
 
+                                // interpret as binary and convert into decimal
+                                std::size_t octantAddress =
+                                        ((int) upperPart) * 4 + ((int) rightPart) * 2 + ((int) backPart) * 1;
+
+                                // find start index of octant type
+                                octantAddress = octantAddress * 16 * N;
+
+                                // get octant of current Node
+                                octantAddress = octantAddress + currentNode;
+
+                                octantID = OCTANTS[octantAddress];
+
+                                /*
                                 if (!upperPart && !rightPart && !backPart) {
                                     octantID = LOWER_SW[currentNode];
                                 } else if (!upperPart && !rightPart && backPart) {
@@ -1475,9 +1506,7 @@ void BarnesHutAlgorithm::buildOctreeParallel2(queue &queue, buffer<double> &curr
                                 } else if (upperPart && rightPart && backPart) {
                                     octantID = UPPER_NE[currentNode];
                                 }
-
-
-//                                currentDepth += 1;
+                                 */
 
                                 // update sum masses and center of mass of this node, since the current body will be inserted in one of the children
                                 SUM_MASSES[currentNode] += MASSES[i];
@@ -1488,9 +1517,9 @@ void BarnesHutAlgorithm::buildOctreeParallel2(queue &queue, buffer<double> &curr
                                 currentNode = octantID;
                                 currentDepth += 1;
                             }
-                            nd_item.mem_fence(access::fence_space::global_and_local);
+                            //nd_item.mem_fence(access::fence_space::global_and_local);
+                            atomic_fence(memory_order::acq_rel,memory_scope::device);
                             atomicNodeIsLockedAccessor.fetch_sub(1, memory_order::acq_rel, memory_scope::device);
-//                            atomic_fence(memory_order::acq_rel,memory_scope::device);
                         }
                     }
                 }
@@ -1925,14 +1954,16 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
         accessor<double> CENTER_OF_MASS_Y(massCenters_y, h);
         accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
 
-        accessor<std::size_t> UPPER_NW(upper_NW, h);
-        accessor<std::size_t> UPPER_NE(upper_NE, h);
-        accessor<std::size_t> UPPER_SW(upper_SW, h);
-        accessor<std::size_t> UPPER_SE(upper_SE, h);
-        accessor<std::size_t> LOWER_NW(lower_NW, h);
-        accessor<std::size_t> LOWER_NE(lower_NE, h);
-        accessor<std::size_t> LOWER_SW(lower_SW, h);
-        accessor<std::size_t> LOWER_SE(lower_SE, h);
+        //accessor<std::size_t> UPPER_NW(upper_NW, h);
+        //accessor<std::size_t> UPPER_NE(upper_NE, h);
+        //accessor<std::size_t> UPPER_SW(upper_SW, h);
+        //accessor<std::size_t> UPPER_SE(upper_SE, h);
+        //accessor<std::size_t> LOWER_NW(lower_NW, h);
+        //accessor<std::size_t> LOWER_NE(lower_NE, h);
+        //accessor<std::size_t> LOWER_SW(lower_SW, h);
+        //accessor<std::size_t> LOWER_SE(lower_SE, h);
+
+        accessor<std::size_t> OCTANTS(octants, h);
 
 //        accessor<std::size_t> TestACC(testBuff, h);
 
@@ -1994,6 +2025,25 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
 
                     } else {
                         // center of mass of the node can not be used --> Push all children on the stack and continue
+
+                        currentStackIndex += 1;
+                        NODES_ON_STACK[currentStackIndex] = OCTANTS[5 * 16 * N + current_Node];
+                        currentStackIndex += 1;
+                        NODES_ON_STACK[currentStackIndex] = OCTANTS[7 * 16 * N + current_Node];
+                        currentStackIndex += 1;
+                        NODES_ON_STACK[currentStackIndex] = OCTANTS[4 * 16 * N + current_Node];
+                        currentStackIndex += 1;
+                        NODES_ON_STACK[currentStackIndex] = OCTANTS[6 * 16 * N + current_Node];
+                        currentStackIndex += 1;
+                        NODES_ON_STACK[currentStackIndex] = OCTANTS[1 * 16 * N + current_Node];
+                        currentStackIndex += 1;
+                        NODES_ON_STACK[currentStackIndex] = OCTANTS[3 * 16 * N + current_Node];
+                        currentStackIndex += 1;
+                        NODES_ON_STACK[currentStackIndex] = OCTANTS[0 + current_Node];
+                        currentStackIndex += 1;
+                        NODES_ON_STACK[currentStackIndex] = OCTANTS[2 * 16 * N + current_Node];
+
+                        /*
                         currentStackIndex += 1;
                         NODES_ON_STACK[currentStackIndex] = UPPER_NW[current_Node];
                         currentStackIndex += 1;
@@ -2010,6 +2060,7 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
                         NODES_ON_STACK[currentStackIndex] = LOWER_SW[current_Node];
                         currentStackIndex += 1;
                         NODES_ON_STACK[currentStackIndex] = LOWER_SE[current_Node];
+                         */
                     }
                 }
             }

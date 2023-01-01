@@ -46,6 +46,10 @@ public:
     buffer<std::size_t> lower_SW = lower_SW_vec;
     buffer<std::size_t> lower_SE = lower_SE_vec;
 
+    // storage for all octants of the tree
+    std::vector<std::size_t> octants_vec;
+    buffer<std::size_t> octants = octants_vec;
+
     // the edge length of the octants
     std::vector<double> edgeLengths_vec;
     buffer<double> edgeLengths = edgeLengths_vec;
