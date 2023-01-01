@@ -37,18 +37,27 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
     adjustVelocities(simulationData);
 
     // buffers for intermediate position and velocity values;
-    buffer<double> intermediatePosition_x = simulationData.positions_x;
-    buffer<double> intermediatePosition_y = simulationData.positions_y;
-    buffer<double> intermediatePosition_z = simulationData.positions_z;
+    std::vector<double> intermediatePosition_x_vec = simulationData.positions_x;
+    std::vector<double> intermediatePosition_y_vec = simulationData.positions_y;
+    std::vector<double> intermediatePosition_z_vec = simulationData.positions_z;
 
-    buffer<double> intermediateVelocity_x = simulationData.velocities_x;
-    buffer<double> intermediateVelocity_y = simulationData.velocities_y;
-    buffer<double> intermediateVelocity_z = simulationData.velocities_z;
+    std::vector<double> intermediateVelocity_x_vec = simulationData.velocities_x;
+    std::vector<double> intermediateVelocity_y_vec = simulationData.velocities_y;
+    std::vector<double> intermediateVelocity_z_vec = simulationData.velocities_z;
+
+    buffer<double> intermediatePosition_x = intermediatePosition_x_vec;
+    buffer<double> intermediatePosition_y = intermediatePosition_y_vec;
+    buffer<double> intermediatePosition_z = intermediatePosition_z_vec;
+
+    buffer<double> intermediateVelocity_x = intermediateVelocity_x_vec;
+    buffer<double> intermediateVelocity_y = intermediateVelocity_y_vec;
+    buffer<double> intermediateVelocity_z = intermediateVelocity_z_vec;
 
     // SYCL queue for computation tasks
     queue queue;
 
-    // Buffer that stores all the masses of the bodies.
+    // vector containing all the masses of the bodies
+    std::vector<double> masses_vec = simulationData.mass;
     buffer masses = simulationData.mass;
 
     // current time of the simulation
@@ -83,9 +92,13 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
     currentStep += 1;
 
     // vectors for intermediate values during the time integration
-    buffer<double> vx_k1_2(numberOfBodies);
-    buffer<double> vy_k1_2(numberOfBodies);
-    buffer<double> vz_k1_2(numberOfBodies);
+    std::vector<double> vx_k1_2_vec(numberOfBodies);
+    std::vector<double> vy_k1_2_vec(numberOfBodies);
+    std::vector<double> vz_k1_2_vec(numberOfBodies);
+
+    buffer<double> vx_k1_2 = vx_k1_2_vec;
+    buffer<double> vy_k1_2 = vy_k1_2_vec;
+    buffer<double> vz_k1_2 = vz_k1_2_vec;
 
 
     // simulation of the next steps:

@@ -118,6 +118,13 @@ public:
                                  buffer<double> &current_positions_z);
 
     /*
+     * This function computes the minimum and maximum x,y,z values of the positions in the simulation data in parallel
+     * and stores them in the corresponding class variables.
+     */
+    void computeMinMaxValuesAABBParallel(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
+                                 buffer<double> &current_positions_z);
+
+    /*
      * This function splits the node with NodeID into 8 octants.
      * The values of the new nodes will be stored at the positions following firstIndex.
      */

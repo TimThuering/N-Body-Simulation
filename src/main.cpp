@@ -53,8 +53,8 @@ int main(int argc, char *argv[]) {
     // parse the csv file containing the simulation data
     InputParser::parse_input(path, simulationData);
 
-   // NaiveAlgorithm algorithm(dt, t_end, visualizationStepWidth, outputDirectoryPath, simulationData.mass.size());
-    BarnesHutAlgorithm algorithm(dt, t_end, visualizationStepWidth, outputDirectoryPath, simulationData.mass.size());
+   //NaiveAlgorithm algorithm(dt, t_end, visualizationStepWidth, outputDirectoryPath, simulationData.mass.size());
+   BarnesHutAlgorithm algorithm(dt, t_end, visualizationStepWidth, outputDirectoryPath, simulationData.mass.size());
 
 
     algorithm.startSimulation(simulationData);
