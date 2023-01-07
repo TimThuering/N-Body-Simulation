@@ -68,6 +68,7 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
     std::size_t currentStep = 0;
 
     // timer for time tracking
+    timer.setProperties(description, numberOfBodies);
     timer.addTimingSequence("Acceleration Kernel Time");
 
     // start of the simulation:
@@ -157,10 +158,14 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
         }
 
 
+        auto beginAcc = std::chrono::steady_clock::now();
         // update the acceleration values, only depends on new position of bodies
         computeAccelerationsGPU(queue, masses, intermediatePosition_x, intermediatePosition_y,
                                 intermediatePosition_z,
                                 acceleration_x, acceleration_y, acceleration_z);
+        auto endAcc = std::chrono::steady_clock::now();
+        timer.addTimeToSequence("Acceleration Kernel Time",std::chrono::duration_cast<std::chrono::microseconds>(endAcc - beginAcc).count());
+
 
 
         // leapfrog integration part 2: update velocities based on the newly computed acceleration
@@ -315,5 +320,4 @@ void NaiveAlgorithm::computeAccelerationsGPU(queue &queue, buffer<double> &masse
     std::cout << "Acceleration Kernel Time:  "
               << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
               << std::endl;
-    timer.addTimeToSequence("Acceleration Kernel Time",std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
 }

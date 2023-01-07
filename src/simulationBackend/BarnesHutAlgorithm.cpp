@@ -89,6 +89,11 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
     // current visualization step of the simulation
     std::size_t currentStep = 0;
 
+    timer.setProperties(description, numberOfBodies);
+    timer.addTimingSequence("Total Time");
+    timer.addTimingSequence("Octree creation");
+    timer.addTimingSequence("Acceleration Kernel Time");
+
     // start of the simulation:
     // computations for initial state: all values get stored for the output
 
@@ -181,11 +186,19 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
         computeMinMaxValuesAABBParallel(queue, intermediatePosition_x, intermediatePosition_y, intermediatePosition_z);
         buildOctreeParallel2(queue, intermediatePosition_x, intermediatePosition_y, intermediatePosition_z,
                              masses);
+        auto endTreeCreation = std::chrono::steady_clock::now();
 
+        timer.addTimeToSequence("Octree creation", std::chrono::duration_cast<std::chrono::microseconds>(endTreeCreation - begin).count());
+
+        auto beginAccelerationKernel = std::chrono::steady_clock::now();
         computeAccelerations(queue, masses, intermediatePosition_x, intermediatePosition_y,
                              intermediatePosition_z,
                              acceleration_x, acceleration_y, acceleration_z);
         auto end = std::chrono::steady_clock::now();
+
+        timer.addTimeToSequence("Acceleration Kernel Time", std::chrono::duration_cast<std::chrono::microseconds>(end - beginAccelerationKernel).count());
+        timer.addTimeToSequence("Total Time", std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count());
+
 
         std::cout << "Time of step:  " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
                   << std::endl;
