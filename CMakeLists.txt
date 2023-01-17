@@ -1,17 +1,25 @@
 cmake_minimum_required(VERSION 3.8)
 
-set(CMAKE_CXX_COMPILER "clang++")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl-targets=nvptx64-nvidia-cuda")
+set(CMAKE_CXX_STANDARD 17)
 
-# uncomment for debugging
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-limit-debug-info")
+option(USE_DPCPP "Use DPC++" ON)
+
+# DPC++
+if(${USE_DPCPP} )
+    set(CMAKE_CXX_COMPILER "clang++")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl-targets=nvptx64-nvidia-cuda")
+endif()
+
 
 project(N_Body_Simulation)
+include_directories(src/utility)
 include_directories(src/simulationData)
 include_directories(src/simulationBackend)
-include_directories(src/utility)
-set(CMAKE_CXX_STANDARD 17)
+include_directories(src/simulationBackend/BarnesHutTreeAlgorithms)
+
+# uncomment for debugging
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-limit-debug-info")
 
 
 add_executable(N_Body_Simulation
@@ -19,7 +27,28 @@ add_executable(N_Body_Simulation
         src/simulationData/InputParser.cpp
         src/simulationBackend/NaiveAlgorithm.cpp
         src/simulationBackend/nBodyAlgorithm.cpp
-        src/utility/TimeConverter.cpp src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.hpp src/utility/TimeMeasurement.cpp src/utility/TimeMeasurement.hpp)
+        src/utility/TimeConverter.cpp
+        src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.hpp
+        src/utility/TimeMeasurement.cpp src/utility/TimeMeasurement.hpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.hpp src/utility/Configuration.hpp src/utility/Configuration.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.hpp)
+
+
+# hipSYCL
+if (NOT ${USE_DPCPP})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/usr/lib/llvm-10/include/openmp")
+    find_package(hipSYCL CONFIG REQUIRED)
+    find_package(OpenMP REQUIRED)
+    add_sycl_to_target(TARGET N_Body_Simulation SOURCES
+            src/main.cpp
+            src/simulationData/InputParser.cpp
+            src/simulationBackend/NaiveAlgorithm.cpp
+            src/simulationBackend/nBodyAlgorithm.cpp
+            src/utility/TimeConverter.cpp
+            src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.hpp
+            src/utility/TimeMeasurement.cpp src/utility/TimeMeasurement.hpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.hpp src/utility/Configuration.hpp src/utility/Configuration.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.hpp)
+endif ()
+
+
+
 
 include(FetchContent)
 FetchContent_Declare(
@@ -40,7 +69,10 @@ add_executable(BarnesHutTest
         tests/BarnesHutTest.cpp
         src/simulationBackend/nBodyAlgorithm.cpp
         src/simulationBackend/BarnesHutAlgorithm.cpp
-        src/utility/TimeMeasurement.cpp)
+        src/utility/TimeMeasurement.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.hpp src/utility/Configuration.hpp src/utility/Configuration.cpp)
+
+
+
 
 enable_testing()
 include(GoogleTest)

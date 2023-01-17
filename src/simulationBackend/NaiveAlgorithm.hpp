@@ -9,8 +9,7 @@ using namespace sycl;
 
 class NaiveAlgorithm : public nBodyAlgorithm {
 public:
-    NaiveAlgorithm(double dt, double tEnd, double visualizationStepWidth, std::string &outputDirectory,
-                   std::size_t numberOfBodies);
+    NaiveAlgorithm(double dt, double tEnd, double visualizationStepWidth, std::string &outputDirectory);
 
     /*
      * Computes an n-body simulation with the naive algorithm

@@ -1,8 +1,10 @@
 #include "nBodyAlgorithm.hpp"
+#include "Configuration.hpp"
 #include <iostream>
 #include <ctime>
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 #include "TimeMeasurement.hpp"
 
 void nBodyAlgorithm::computeEnergy(queue &queue, buffer<double> &masses, std::size_t currentStep,
@@ -17,11 +19,11 @@ void nBodyAlgorithm::computeEnergy(queue &queue, buffer<double> &masses, std::si
     double E_total_result;
 
 
-    std::vector<double> E_kin(numberOfBodies);
-    std::vector<double> E_pot(numberOfBodies);
+    std::vector<double> E_kin(configuration::numberOfBodies);
+    std::vector<double> E_pot(configuration::numberOfBodies);
 
-    buffer<double> E_kin_values = E_kin;
-    buffer<double> E_pot_values = E_pot;
+    buffer<double> E_kin_values(E_kin.data(), E_kin.size());
+    buffer<double> E_pot_values(E_pot.data(), E_pot.size());
 
     double G = this->G;
 
@@ -42,7 +44,7 @@ void nBodyAlgorithm::computeEnergy(queue &queue, buffer<double> &masses, std::si
 
 
         // parallel computation for kinetic and potential energy.
-        h.parallel_for(numberOfBodies, [=](auto &j) {
+        h.parallel_for(sycl::range<1>(configuration::numberOfBodies), [=](auto &j) {
             double v = V_X[j] * V_X[j] +
                        V_Y[j] * V_Y[j] +
                        V_Z[j] * V_Z[j];
@@ -65,7 +67,7 @@ void nBodyAlgorithm::computeEnergy(queue &queue, buffer<double> &masses, std::si
     host_accessor<double> E_KIN(E_kin_values);
     host_accessor<double> E_POT(E_pot_values);
 
-    for (std::size_t i = 0; i < numberOfBodies; ++i) {
+    for (std::size_t i = 0; i < configuration::numberOfBodies; ++i) {
         E_kin_result += E_KIN[i];
         E_pot_result += E_POT[i];
     }
@@ -89,7 +91,7 @@ void nBodyAlgorithm::storeAccelerations(std::size_t currentStep, buffer<double> 
     host_accessor<double> ACC_Y(acceleration_y);
     host_accessor<double> ACC_Z(acceleration_z);
 
-    for (std::size_t i = 0; i < numberOfBodies; ++i) {
+    for (std::size_t i = 0; i < configuration::numberOfBodies; ++i) {
         double accelerationNorm = ACC_X[i] * ACC_X[i] +
                                   ACC_Y[i] * ACC_Y[i] +
                                   ACC_Z[i] * ACC_Z[i];
@@ -104,7 +106,7 @@ void nBodyAlgorithm::adjustVelocities(const SimulationData &simulationData) {
     double sumMassesVelocity_y = 0;
     double sumMassesVelocity_z = 0;
 
-    for (int i = 0; i < numberOfBodies; ++i) {
+    for (int i = 0; i < configuration::numberOfBodies; ++i) {
         sumMasses += simulationData.mass[i];
         sumMassesVelocity_x += simulationData.mass[i] * simulationData.velocities_x[i];
         sumMassesVelocity_y += simulationData.mass[i] * simulationData.velocities_y[i];
@@ -116,7 +118,7 @@ void nBodyAlgorithm::adjustVelocities(const SimulationData &simulationData) {
     double ui_z = sumMassesVelocity_z / sumMasses;
 
 
-    for (int i = 0; i < numberOfBodies; ++i) {
+    for (int i = 0; i < configuration::numberOfBodies; ++i) {
         velocities_x[0][i] -= ui_x;
         velocities_y[0][i] -= ui_y;
         velocities_z[0][i] -= ui_z;
@@ -139,13 +141,15 @@ void nBodyAlgorithm::generateParaViewOutput(const SimulationData &simulationData
     // export the all timings as json file
     timer.exportJSON(filePathBase + "times.json");
 
+    outputLastState(filePathBase + "lastState.csv");
+
     // generate the .pvd file for this simulation
     std::ofstream pvdFile(filePathBase + "/simulation" + ".pvd");
 
     // write the header to the .pvd file
     pvdFile << "<?xml version=\"1.0\"?>" << '\n'
             << R"(<VTKFile type="Collection" version="0.1" byte_order="LittleEndian" compressor="vtkZLibDataCompressor">)"
-            << '\n' << "<Collection>"  << '\n';
+            << '\n' << "<Collection>" << '\n';
 
 
     for (std::size_t i = 0; i < positions_x.size(); ++i) {
@@ -156,7 +160,7 @@ void nBodyAlgorithm::generateParaViewOutput(const SimulationData &simulationData
 
         // add a reference of the .vtp file to the .pvd file
         pvdFile << "<DataSet timestep=\"" << i << "\" "
-//                << R"(group="" part="0" file=")" << time.append("/" + vtpFileName) << "\"/>";
+                //                << R"(group="" part="0" file=")" << time.append("/" + vtpFileName) << "\"/>";
                 << R"(group="" part="0" file=")" << vtpFileName << "\"/>" << '\n';
 
         // write to the file
@@ -246,20 +250,20 @@ void nBodyAlgorithm::generateParaViewOutput(const SimulationData &simulationData
 }
 
 void nBodyAlgorithm::writeVirialEquilibrium(size_t i, std::ofstream &vtpFile) {
-        vtpFile << virialEquilibrium[i] << '\n';
+    vtpFile << virialEquilibrium[i] << '\n';
 }
 
 void nBodyAlgorithm::writeTotalEnergy(size_t i, std::ofstream &vtpFile) {
-        vtpFile << totalEnergy[i] << '\n';
+    vtpFile << totalEnergy[i] << '\n';
 
 }
 
 void nBodyAlgorithm::writePotentialEnergy(size_t i, std::ofstream &vtpFile) {
-        vtpFile << potentialEnergy[i] << '\n';
+    vtpFile << potentialEnergy[i] << '\n';
 }
 
 void nBodyAlgorithm::writeKineticEnergy(size_t i, std::ofstream &vtpFile) {
-        vtpFile << kineticEnergy[i] << '\n';
+    vtpFile << kineticEnergy[i] << '\n';
 }
 
 void nBodyAlgorithm::writeConnectivity(size_t i, std::ofstream &vtpFile) {
@@ -331,5 +335,21 @@ void nBodyAlgorithm::writeFileHeader(size_t i, std::ofstream &vtpFile) {
             << "\">" << '\n'
             << "<Points>" << '\n'
             << R"(<DataArray type="Float64" Name="position" NumberOfComponents="3" format="ascii">)" << '\n';
+}
+
+void nBodyAlgorithm::outputLastState(const std::string &path) {
+
+    std::ofstream csvFile(path);
+
+    std::size_t i = positions_x.size() - 1;
+
+    csvFile << "position_x, position_y, position_z \n";
+
+    for (std::size_t j = 0; j < positions_x[i].size(); ++j) {
+        csvFile << positions_x[i].at(j) << ","
+                << positions_y[i].at(j) << ","
+                << positions_z[i].at(j) << '\n';
+    }
+
 }
 

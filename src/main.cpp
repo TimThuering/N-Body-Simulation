@@ -3,6 +3,7 @@
 #include "NaiveAlgorithm.hpp"
 #include "BarnesHutAlgorithm.hpp"
 #include "TimeConverter.hpp"
+#include "Configuration.hpp"
 #include <cxxopts.hpp>
 
 int main(int argc, char *argv[]) {
@@ -53,8 +54,10 @@ int main(int argc, char *argv[]) {
     // parse the csv file containing the simulation data
     InputParser::parse_input(path, simulationData);
 
-   //NaiveAlgorithm algorithm(dt, t_end, visualizationStepWidth, outputDirectoryPath, simulationData.mass.size());
-   BarnesHutAlgorithm algorithm(dt, t_end, visualizationStepWidth, outputDirectoryPath, simulationData.mass.size());
+    configuration::loadConfiguration(simulationData.mass.size());
+
+    //NaiveAlgorithm algorithm(dt, t_end, visualizationStepWidth, outputDirectoryPath);
+    BarnesHutAlgorithm algorithm(dt, t_end, visualizationStepWidth, outputDirectoryPath);
 
 
     algorithm.startSimulation(simulationData);

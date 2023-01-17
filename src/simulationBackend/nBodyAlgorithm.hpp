@@ -23,7 +23,7 @@ public:
     double dt; // delta t determines the time step width used for the simulation
     double t_end; // determines when the simulation will stop
     double visualizationStepWidth; // determines the step width used for the visualization (i.e. the ParaView output)
-    std::size_t numberOfBodies; // total number of bodies
+//    std::size_t numberOfBodies; // total number of bodies
     double G;
 
     TimeMeasurement timer;
@@ -46,21 +46,19 @@ public:
     std::map<std::size_t, double> totalEnergy;
     std::map<std::size_t, double> virialEquilibrium;
 
-    nBodyAlgorithm(double dt, double t_end, double visualizationStepWidth, std::string &outputDirectory,
-                   std::size_t numberOfBodies) {
+    nBodyAlgorithm(double dt, double t_end, double visualizationStepWidth, std::string &outputDirectory) {
         this->dt = dt;
         this->t_end = t_end;
         this->visualizationStepWidth = visualizationStepWidth;
         this->outputDirectory = outputDirectory;
-        this->numberOfBodies = numberOfBodies;
 
         // Gravitational constant G
-        this->G = 6.67428 * pow(10, -11);
-        double meter_AU = 1.0 / (1.49597870691 * pow(10, 11));
+        this->G = 6.67428 * std::pow(10, -11);
+        double meter_AU = 1.0 / (1.49597870691 * std::pow(10, 11));
         double second_Days = 1.0 / 86400;
 
         // scale G appropriately
-        G = G * (pow(meter_AU, 3) / pow(second_Days, 2));
+        G = G * (std::pow(meter_AU, 3) / std::pow(second_Days, 2));
     }
 
     /*
@@ -73,6 +71,11 @@ public:
      * Generates all files necessary for the ParaView visualization
      */
     void generateParaViewOutput(const SimulationData &simulationData);
+
+    /*
+     * Generates .csv files containing the positions of all bodies in the last time step
+     */
+    void outputLastState(const std::string &path);
 
     /*
      * Computes the kinetic, potential and total energy and the virial equilibrium in the current step and stores

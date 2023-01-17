@@ -1,5 +1,9 @@
 cmake-build-debug/
+cmake-build-debug-dpc/
+cmake-build-debug-hipsycl/
 cmake-build-release/
+cmake-build-release-dpc/
+cmake-build-release-hipsycl/
 .idea/
 data/
 output/
