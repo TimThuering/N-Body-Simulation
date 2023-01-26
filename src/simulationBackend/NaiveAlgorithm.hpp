@@ -30,6 +30,11 @@ private:
                                  buffer<double> &acceleration_x, buffer<double> &acceleration_y,
                                  buffer<double> &acceleration_z);
 
+    void computeAccelerationsCPU(queue &queue, buffer<double> &masses, buffer<double> &currentPositions_x,
+                                 buffer<double> &currentPositions_y, buffer<double> &currentPositions_z,
+                                 buffer<double> &acceleration_x, buffer<double> &acceleration_y,
+                                 buffer<double> &acceleration_z);
+
 
 };
 

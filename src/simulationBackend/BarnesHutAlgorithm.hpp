@@ -4,6 +4,7 @@
 #include "nBodyAlgorithm.hpp"
 #include "BarnesHutOctree.hpp"
 #include "ParallelOctreeTopDownSynchronized.hpp"
+#include "ParallelOctreeTopDownSubtrees.hpp"
 #include "SimulationData.hpp"
 #include <sycl/sycl.hpp>
 
@@ -13,6 +14,7 @@ class BarnesHutAlgorithm : public nBodyAlgorithm {
 public:
 
     // Contains the octree data structure including an operation to build the octree.
+//    ParallelOctreeTopDownSubtrees octree;
     ParallelOctreeTopDownSynchronized octree;
 
     BarnesHutAlgorithm(double dt, double tEnd, double visualizationStepWidth, std::string &outputDirectory);

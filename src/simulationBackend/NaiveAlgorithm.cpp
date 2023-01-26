@@ -54,7 +54,8 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
     buffer<double> intermediateVelocity_z(intermediateVelocity_z_vec.data(), intermediateVelocity_z_vec.size());
 
     // SYCL queue for computation tasks
-    queue queue;
+//    queue queue{cpu_selector()};
+    queue queue{};
 
     // vector containing all the masses of the bodies
     std::vector<double> masses_vec = simulationData.mass;
@@ -304,13 +305,24 @@ void NaiveAlgorithm::computeAccelerationsGPU(queue &queue, buffer<double> &masse
                                        double r_y = LOCAL_POS_Y[j] - pos_y;
                                        double r_z = LOCAL_POS_Z[j] - pos_z;
 
-                                       double denominator = sycl::sqrt(
-                                               (r_x * r_x) + (r_y * r_y) + (r_z * r_z) + epsilon_2);
+                                       double denominator =
+                                               (r_x * r_x) + (r_y * r_y) + (r_z * r_z) + epsilon_2;
                                        denominator = denominator * denominator * denominator;
+                                       denominator = sycl::rsqrt(denominator);
 
-                                       acc_x += LOCAL_MASSES[j] * (r_x / denominator);
-                                       acc_y += LOCAL_MASSES[j] * (r_y / denominator);
-                                       acc_z += LOCAL_MASSES[j] * (r_z / denominator);
+
+
+//                                       double denominator = sycl::sqrt(
+//                                               (r_x * r_x) + (r_y * r_y) + (r_z * r_z) + epsilon_2);
+//                                       denominator = denominator * denominator * denominator;
+//
+//                                       acc_x += LOCAL_MASSES[j] * (r_x / denominator);
+//                                       acc_y += LOCAL_MASSES[j] * (r_y / denominator);
+//                                       acc_z += LOCAL_MASSES[j] * (r_z / denominator);
+
+                                       acc_x += LOCAL_MASSES[j] * (r_x * denominator);
+                                       acc_y += LOCAL_MASSES[j] * (r_y * denominator);
+                                       acc_z += LOCAL_MASSES[j] * (r_z * denominator);
                                    }
                                    nd_item.barrier(); // continue with loading new values only when all computations of current tile are done
                                }
@@ -326,4 +338,59 @@ void NaiveAlgorithm::computeAccelerationsGPU(queue &queue, buffer<double> &masse
     std::cout << "Acceleration Kernel Time:  "
               << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
               << std::endl;
+}
+
+void NaiveAlgorithm::computeAccelerationsCPU(queue &queue, buffer<double> &masses, buffer<double> &currentPositions_x,
+                                             buffer<double> &currentPositions_y, buffer<double> &currentPositions_z,
+                                             buffer<double> &acceleration_x, buffer<double> &acceleration_y,
+                                             buffer<double> &acceleration_z) {
+
+    auto begin = std::chrono::steady_clock::now();
+    double epsilon_2 = configuration::epsilon2;
+    double G = this->G;
+    std::size_t N = configuration::numberOfBodies;
+
+    queue.submit([&](handler &h) {
+
+        accessor<double> POS_X(currentPositions_x, h);
+        accessor<double> POS_Y(currentPositions_y, h);
+        accessor<double> POS_Z(currentPositions_z, h);
+        accessor<double> MASSES(masses, h);
+        accessor<double> ACC_X(acceleration_x, h);
+        accessor<double> ACC_Y(acceleration_y, h);
+        accessor<double> ACC_Z(acceleration_z, h);
+
+        // device code
+        h.parallel_for(sycl::range<1>(configuration::numberOfBodies), [=](auto &i) {
+            double acc_x = 0;
+            double acc_y = 0;
+            double acc_z = 0;
+
+            for (std::size_t j = 0; j < N; ++j) {
+
+                double r_x = POS_X[j] - POS_X[i];
+                double r_y = POS_Y[j] - POS_Y[i];
+                double r_z = POS_Z[j] - POS_Z[i];
+
+                double denominator = (r_x * r_x) + (r_y * r_y) + (r_z * r_z) + epsilon_2;
+                denominator = denominator * denominator * denominator;
+                denominator = sycl::rsqrt(denominator);
+
+                acc_x += MASSES[j] * (r_x * denominator);
+                acc_y += MASSES[j] * (r_y * denominator);
+                acc_z += MASSES[j] * (r_z * denominator);
+            }
+
+            ACC_X[i] = acc_x * G;
+            ACC_Y[i] = acc_y * G;
+            ACC_Z[i] = acc_z * G;
+
+        });
+    }).wait();
+    auto end = std::chrono::steady_clock::now();
+
+    std::cout << "Acceleration Kernel Time:  "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+              << std::endl;
+
 }

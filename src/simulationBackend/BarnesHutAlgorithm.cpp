@@ -53,8 +53,10 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
     buffer<double> intermediateVelocity_z(intermediateVelocity_z_vec.data(), intermediateVelocity_z_vec.size());
 
     // SYCL queue for computation tasks
-    queue queue;
+//    queue queue{cpu_selector()};
+//    std::cout << queue.get_device().is_cpu() << std::endl;
 
+    queue queue;
     // vector containing all the masses of the bodies
     buffer<double> masses(simulationData.mass.data(), simulationData.mass.size());
 
@@ -97,9 +99,13 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
     currentStep += 1;
 
     // vectors for intermediate values during the time integration
-    buffer<double> vx_k1_2(configuration::numberOfBodies);
-    buffer<double> vy_k1_2(configuration::numberOfBodies);
-    buffer<double> vz_k1_2(configuration::numberOfBodies);
+    std::vector<double> vx_k1_2_vec(configuration::numberOfBodies);
+    std::vector<double> vy_k1_2_vec(configuration::numberOfBodies);
+    std::vector<double> vz_k1_2_vec(configuration::numberOfBodies);
+
+    buffer<double> vx_k1_2(vx_k1_2_vec.data(), vx_k1_2_vec.size());
+    buffer<double> vy_k1_2(vy_k1_2_vec.data(), vy_k1_2_vec.size());
+    buffer<double> vz_k1_2(vz_k1_2_vec.data(), vz_k1_2_vec.size());
 
 
     // simulation of the next steps:
@@ -177,8 +183,8 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
                                 std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count());
 
 
-        std::cout << "Time of step:  " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
-                  << std::endl;
+//        std::cout << "Time of step:  " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+//                  << std::endl;
 
 
         // leapfrog integration part 2: update velocities based on the newly computed acceleration
@@ -266,7 +272,6 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
         accessor<double> POS_Y(currentPositions_y, h);
         accessor<double> POS_Z(currentPositions_z, h);
 
-        accessor<double> MASSES(masses, h);
         accessor<double> SUM_MASSES(octree.sumOfMasses, h);
 
         accessor<double> ACC_X(acceleration_x, h);
@@ -282,9 +287,6 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
 
         accessor<std::size_t> BODY_OF_NODE(octree.bodyOfNode, h);
 
-        accessor<double> MIN_X(octree.min_x_values, h);
-        accessor<double> MIN_Y(octree.min_y_values, h);
-        accessor<double> MIN_Z(octree.min_z_values, h);
 
         accessor<std::size_t> NODES_ON_STACK(nodesOnStack, h);
 
@@ -325,12 +327,20 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
                     if (((currentTheta < THETA) || BODY_OF_NODE[current_Node] != N)) {
                         // center of mass of the node can be used to compute the acceleration
 
-                        double denominator = sycl::sqrt((d_x * d_x) + (d_y * d_y) + (d_z * d_z) + epsilon_2);
+                        double denominator = (d_x * d_x) + (d_y * d_y) + (d_z * d_z) + epsilon_2;
                         denominator = denominator * denominator * denominator;
+                        denominator = sycl::rsqrt(denominator);
 
-                        acc_x += SUM_MASSES[current_Node] * (d_x / denominator);
-                        acc_y += SUM_MASSES[current_Node] * (d_y / denominator);
-                        acc_z += SUM_MASSES[current_Node] * (d_z / denominator);
+//                        double denominator = sycl::sqrt((d_x * d_x) + (d_y * d_y) + (d_z * d_z) + epsilon_2);
+//                        denominator = denominator * denominator * denominator;
+//
+//                        acc_x += SUM_MASSES[current_Node] * (d_x / denominator);
+//                        acc_y += SUM_MASSES[current_Node] * (d_y / denominator);
+//                        acc_z += SUM_MASSES[current_Node] * (d_z / denominator);
+
+                        acc_x += SUM_MASSES[current_Node] * (d_x * denominator);
+                        acc_y += SUM_MASSES[current_Node] * (d_y * denominator);
+                        acc_z += SUM_MASSES[current_Node] * (d_z * denominator);
 
                     } else {
                         // center of mass of the node can not be used --> Push all children on the stack and continue
