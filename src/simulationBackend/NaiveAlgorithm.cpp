@@ -54,7 +54,6 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
     buffer<double> intermediateVelocity_z(intermediateVelocity_z_vec.data(), intermediateVelocity_z_vec.size());
 
     // SYCL queue for computation tasks
-//    queue queue{cpu_selector()};
     queue queue{};
 
     // vector containing all the masses of the bodies
@@ -69,7 +68,8 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
     std::size_t currentStep = 0;
 
     // configure timer for time tracking
-    timer.setProperties(description, configuration::numberOfBodies);
+    std::string device = "GPU";
+    timer.setProperties(description, configuration::numberOfBodies, device);
     timer.addTimingSequence("Acceleration Kernel Time");
 
     // start of the simulation:
@@ -81,6 +81,8 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
                             intermediatePosition_z,
                             acceleration_x, acceleration_y, acceleration_z);
     auto endAcc1 = std::chrono::steady_clock::now();
+    timer.addTimeToSequence("Acceleration Kernel Time",
+                            std::chrono::duration_cast<std::chrono::microseconds>(endAcc1 - beginAcc1).count());
     std::cout << std::chrono::duration_cast<std::chrono::microseconds>(endAcc1 - beginAcc1).count() << std::endl;
 
     // compute energy of the initial step.
