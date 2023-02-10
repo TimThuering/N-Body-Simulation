@@ -7,7 +7,9 @@ using namespace sycl;
 
 BarnesHutAlgorithm::BarnesHutAlgorithm(double dt, double tEnd, double visualizationStepWidth,
                                        std::string &outputDirectory)
-        : nBodyAlgorithm(dt, tEnd, visualizationStepWidth, outputDirectory) {
+        : nBodyAlgorithm(dt, tEnd, visualizationStepWidth, outputDirectory),
+          nodesOnStack_vec(configuration::barnes_hut_algorithm::stackSize * configuration::numberOfBodies, octree.bodyOfNode.size()),
+          nodesOnStack(nodesOnStack_vec.data(), nodesOnStack_vec.size()){
     this->description = "Barnes-Hut Algorithm";
 }
 
@@ -53,9 +55,6 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
     buffer<double> intermediateVelocity_z(intermediateVelocity_z_vec.data(), intermediateVelocity_z_vec.size());
 
     // SYCL queue for computation tasks
-//    queue queue{cpu_selector()};
-//    std::cout << queue.get_device().is_cpu() << std::endl;
-
     queue queue;
     // vector containing all the masses of the bodies
     buffer<double> masses(simulationData.mass.data(), simulationData.mass.size());
@@ -68,7 +67,8 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
     std::size_t currentStep = 0;
 
     // configure the timer
-    timer.setProperties(description, configuration::numberOfBodies);
+    std::string device = "GPU";
+    timer.setProperties(description, configuration::numberOfBodies, device);
     timer.addTimingSequence("Total Time");
     timer.addTimingSequence("Octree creation");
     timer.addTimingSequence("Acceleration Kernel Time");
@@ -183,8 +183,8 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
                                 std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count());
 
 
-//        std::cout << "Time of step:  " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
-//                  << std::endl;
+        std::cout << "Time of step:  " << std::chrono::duration<double, std::milli>(end - begin).count()
+                  << std::endl;
 
 
         // leapfrog integration part 2: update velocities based on the newly computed acceleration
@@ -253,18 +253,9 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
                                               buffer<double> &currentPositions_z,
                                               buffer<double> &acceleration_x, buffer<double> &acceleration_y,
                                               buffer<double> &acceleration_z) {
-
     auto begin = std::chrono::steady_clock::now();
 
-    std::size_t stackSize = (8 * octree.maxTreeDepth); // determine the stack size for each work item
-
-    std::vector<std::size_t> nodesOnStack_vec(stackSize * configuration::numberOfBodies, octree.bodyOfNode.size());
-
-    buffer<std::size_t> nodesOnStack(nodesOnStack_vec.data(), nodesOnStack_vec.size());
-
-
     double epsilon_2 = configuration::epsilon2;
-
 
     queue.submit([&](handler &h) {
 
@@ -296,6 +287,8 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
 
         std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
 
+        std::size_t stack_size = configuration::barnes_hut_algorithm::stackSize;
+
 
         h.parallel_for(sycl::range<1>(configuration::numberOfBodies), [=](auto &i) {
             double acc_x = 0;
@@ -307,10 +300,10 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
             double pos_z_i = POS_Z[i];
 
 
-            int currentStackIndex = (stackSize * i) + 1; // start index for the stack of current work item.
+            int currentStackIndex = (stack_size * i) + 1; // start index for the stack of current work item.
             NODES_ON_STACK[currentStackIndex] = 0; // push the root node on the stack
 
-            while (currentStackIndex != (stackSize * i)) {
+            while (currentStackIndex != (stack_size * i)) {
 
                 std::size_t current_Node = NODES_ON_STACK[currentStackIndex]; // get node from stack
                 currentStackIndex -= 1;

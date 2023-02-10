@@ -14,8 +14,11 @@ class BarnesHutAlgorithm : public nBodyAlgorithm {
 public:
 
     // Contains the octree data structure including an operation to build the octree.
-//    ParallelOctreeTopDownSubtrees octree;
-    ParallelOctreeTopDownSynchronized octree;
+    ParallelOctreeTopDownSubtrees octree;
+//    ParallelOctreeTopDownSynchronized octree;
+
+    std::vector<std::size_t> nodesOnStack_vec;
+    buffer<std::size_t> nodesOnStack;
 
     BarnesHutAlgorithm(double dt, double tEnd, double visualizationStepWidth, std::string &outputDirectory);
 
