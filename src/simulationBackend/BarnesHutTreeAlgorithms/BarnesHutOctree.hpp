@@ -63,9 +63,21 @@ public:
     std::vector<std::size_t> bodyOfNode_vec;
     buffer<std::size_t> bodyOfNode;
 
+    // storage for flags indicating that the corresponding node is a leaf node
+    std::vector<int> nodeIsLeaf_vec;
+    buffer<int> nodeIsLeaf;
+
     // the sums of the masses of all bodies in the respective octants
     std::vector<double> sumMasses_vec;
     buffer<double> sumOfMasses;
+
+    // storage that will be used to atomically determine the next unused node ID
+    std::vector<std::size_t> nextFreeNodeID_vec;
+    buffer<std::size_t> nextFreeNodeID;
+
+    // nodes for which the center of Mass has to be computed after the preparation steps and the first iteration
+    std::vector<std::size_t> nodesToProcessCenterOfMass_vec;
+    buffer<std::size_t> nodesToProcessCenterOfMass;
 
     // the center of the masses of all bodies in the respective octants (only contain the numerator --> have to be divided by the corresponding sum of masses)
     std::vector<double> centerOfMass_x_vec;
@@ -91,6 +103,27 @@ public:
     void computeMinMaxValuesAABB(queue &queue, buffer<double> &current_positions_x,
                                  buffer<double> &current_positions_y,
                                  buffer<double> &current_positions_z);
+
+    /*
+     * Computes the center of mass of all bodies in a cell of the octree. A cell in the octree is represented by a node.
+     * This version can be used on GPUs.
+     */
+    void computeCenterOfMass_GPU(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
+                                 buffer<double> &current_positions_z, buffer<double> &masses);
+
+    /*
+     * Computes the center of mass of all bodies in a cell of the octree. A cell in the octree is represented by a node.
+     * This version can be used on CPUs.
+     */
+    void computeCenterOfMass_CPU(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
+                                 buffer<double> &current_positions_z, buffer<double> &masses);
+
+    /*
+     * This function prepares the computation of the computeCenterOfMass functions in order to speed them up.
+     * It computes the values of all nodes that are leaf nodes.
+     */
+    void prepareCenterOfMass(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
+                             buffer<double> &current_positions_z, buffer<double> &masses);
 };
 
 
