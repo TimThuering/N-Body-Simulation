@@ -10,6 +10,7 @@ class TimeMeasurement {
 public:
     std::string algorithmType;
     std::size_t bodyCount;
+    std::string device;
     /*
      * Adds a new key value pair to the map times with name as key.
      */
@@ -22,7 +23,7 @@ public:
 
     void exportJSON(const std::string& path);
 
-    void setProperties(std::string &algorithm, std::size_t bodyCount);
+    void setProperties(std::string &algorithm, std::size_t &bodyCount, std::string &device);
 };
 
 

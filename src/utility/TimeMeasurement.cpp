@@ -18,6 +18,7 @@ void TimeMeasurement::exportJSON(const std::string &path) {
     std::ofstream jsonFile(path);
     jsonFile << "{ \n";
     jsonFile << "  " << "\"algorithm\": " << "\"" << algorithmType << "\",\n";
+    jsonFile << "  " << "\"device\": " << "\"" << device << "\",\n";
     jsonFile << "  " << "\"body count\": " << bodyCount;
 
     for (auto &[sequenceName, timeSequence]: times) {
@@ -34,7 +35,8 @@ void TimeMeasurement::exportJSON(const std::string &path) {
     jsonFile.close();
 }
 
-void TimeMeasurement::setProperties(std::string &algorithm, std::size_t bodyCount) {
+void TimeMeasurement::setProperties(std::string &algorithm, std::size_t &bodyCountArg, std::string &deviceArg) {
     this->algorithmType = algorithm;
-    this->bodyCount = bodyCount;
+    this->bodyCount = bodyCountArg;
+    this->device = deviceArg;
 }
