@@ -19,7 +19,7 @@ include_directories(src/simulationBackend)
 include_directories(src/simulationBackend/BarnesHutTreeAlgorithms)
 
 # uncomment for debugging
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-limit-debug-info")
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-limit-debug-info")
 
 
 add_executable(N_Body_Simulation
@@ -29,12 +29,13 @@ add_executable(N_Body_Simulation
         src/simulationBackend/nBodyAlgorithm.cpp
         src/utility/TimeConverter.cpp
         src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.hpp
-        src/utility/TimeMeasurement.cpp src/utility/TimeMeasurement.hpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.hpp src/utility/Configuration.hpp src/utility/Configuration.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.hpp)
+        src/utility/TimeMeasurement.cpp src/utility/TimeMeasurement.hpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.hpp src/utility/Configuration.hpp src/utility/Configuration.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.hpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSubtrees.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSubtrees.hpp)
 
 
 # hipSYCL
 if (NOT ${USE_DPCPP})
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/usr/lib/llvm-10/include/openmp")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L/usr/lib/llvm-10/lib")
     find_package(hipSYCL CONFIG REQUIRED)
     find_package(OpenMP REQUIRED)
     add_sycl_to_target(TARGET N_Body_Simulation SOURCES
@@ -45,6 +46,7 @@ if (NOT ${USE_DPCPP})
             src/utility/TimeConverter.cpp
             src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.hpp
             src/utility/TimeMeasurement.cpp src/utility/TimeMeasurement.hpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.hpp src/utility/Configuration.hpp src/utility/Configuration.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.hpp)
+    target_link_options(N_Body_Simulation PUBLIC -fopenmp)
 endif ()
 
 
@@ -67,9 +69,10 @@ add_executable(InputParserTest
 
 add_executable(BarnesHutTest
         tests/BarnesHutTest.cpp
-        src/simulationBackend/nBodyAlgorithm.cpp
-        src/simulationBackend/BarnesHutAlgorithm.cpp
-        src/utility/TimeMeasurement.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.hpp src/utility/Configuration.hpp src/utility/Configuration.cpp)
+#        src/simulationBackend/nBodyAlgorithm.cpp
+#        src/simulationBackend/BarnesHutAlgorithm.cpp
+#        src/utility/TimeMeasurement.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.hpp src/utility/Configuration.hpp src/utility/Configuration.cpp
+        )
 
 
 
