@@ -82,8 +82,8 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
                             acceleration_x, acceleration_y, acceleration_z);
     auto endAcc1 = std::chrono::steady_clock::now();
     timer.addTimeToSequence("Acceleration Kernel Time",
-                            std::chrono::duration_cast<std::chrono::microseconds>(endAcc1 - beginAcc1).count());
-    std::cout << std::chrono::duration_cast<std::chrono::microseconds>(endAcc1 - beginAcc1).count() << std::endl;
+                            std::chrono::duration<double, std::milli>(endAcc1 - beginAcc1).count());
+    std::cout << std::chrono::duration<double, std::milli>(endAcc1 - beginAcc1).count() << std::endl;
 
     // compute energy of the initial step.
     computeEnergy(queue, masses, currentStep, intermediatePosition_x, intermediatePosition_y, intermediatePosition_z,
@@ -171,7 +171,7 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
                                 acceleration_x, acceleration_y, acceleration_z);
         auto endAcc = std::chrono::steady_clock::now();
         timer.addTimeToSequence("Acceleration Kernel Time",
-                                std::chrono::duration_cast<std::chrono::microseconds>(endAcc - beginAcc).count());
+                                std::chrono::duration<double, std::milli>(endAcc - beginAcc).count());
 
 
 
@@ -338,7 +338,7 @@ void NaiveAlgorithm::computeAccelerationsGPU(queue &queue, buffer<double> &masse
     auto end = std::chrono::steady_clock::now();
 
     std::cout << "Acceleration Kernel Time:  "
-              << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+              << std::chrono::duration<double, std::milli>(end - begin).count()
               << std::endl;
 }
 
@@ -392,7 +392,7 @@ void NaiveAlgorithm::computeAccelerationsCPU(queue &queue, buffer<double> &masse
     auto end = std::chrono::steady_clock::now();
 
     std::cout << "Acceleration Kernel Time:  "
-              << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+              << std::chrono::duration<double, std::milli>(end - begin).count()
               << std::endl;
 
 }
