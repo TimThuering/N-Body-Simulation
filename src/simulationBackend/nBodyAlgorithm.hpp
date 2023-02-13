@@ -23,7 +23,6 @@ public:
     double dt; // delta t determines the time step width used for the simulation
     double t_end; // determines when the simulation will stop
     double visualizationStepWidth; // determines the step width used for the visualization (i.e. the ParaView output)
-//    std::size_t numberOfBodies; // total number of bodies
     double G;
 
     TimeMeasurement timer;

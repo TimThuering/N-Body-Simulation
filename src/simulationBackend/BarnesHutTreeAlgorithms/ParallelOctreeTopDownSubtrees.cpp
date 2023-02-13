@@ -16,15 +16,16 @@ ParallelOctreeTopDownSubtrees::ParallelOctreeTopDownSubtrees() :
 
 void ParallelOctreeTopDownSubtrees::buildOctree(queue &queue, buffer<double> &current_positions_x,
                                                 buffer<double> &current_positions_y,
-                                                buffer<double> &current_positions_z, buffer<double> &masses) {
+                                                buffer<double> &current_positions_z, buffer<double> &masses, TimeMeasurement &timer) {
 
     auto begin = std::chrono::steady_clock::now();
-
     // compute the axis aligned bounding box around all bodies
     computeMinMaxValuesAABB(queue, current_positions_x, current_positions_y, current_positions_z);
+    auto endAABB_creation = std::chrono::steady_clock::now();
 
 
     buildOctreeToLevel(queue, current_positions_x, current_positions_y, current_positions_z, masses);
+    auto endBuildOctreeToLevel = std::chrono::steady_clock::now();
 
 
     std::size_t nodeCount;
@@ -33,16 +34,14 @@ void ParallelOctreeTopDownSubtrees::buildOctree(queue &queue, buffer<double> &cu
         nodeCount = NodeCount[0];
         nodeCountTopOfTree = nodeCount;
     }
-
-
     std::vector<std::size_t> bodyCountSubtree_vec(nodeCount, 0);
     buffer<std::size_t> bodyCountSubtree(bodyCountSubtree_vec.data(), bodyCountSubtree_vec.size());
 
     std::vector<std::size_t> subtrees_vec(nodeCount);
     buffer<std::size_t> subtrees(subtrees_vec.data(), subtrees_vec.size());
 
-
     prepareSubtrees(queue, bodyCountSubtree, subtrees, nodeCount);
+    auto endPrepareSubtrees = std::chrono::steady_clock::now();
 
 
     host_accessor SUBTREE_COUNT(subtreeCount);
@@ -52,25 +51,31 @@ void ParallelOctreeTopDownSubtrees::buildOctree(queue &queue, buffer<double> &cu
     buffer<std::size_t> bodiesOfSubtreeStartIndex(bodiesOfSubtreeStartIndex_vec.data(),
                                                   bodiesOfSubtreeStartIndex_vec.size());
 
-
     sortBodiesForSubtrees(queue, bodyCountSubtree, subtrees, bodiesOfSubtreeStartIndex);
+    auto endSortBodiesForSubtrees = std::chrono::steady_clock::now();
 
 
     buildSubtrees(queue, current_positions_x, current_positions_y,
                   current_positions_z, masses, bodiesOfSubtreeStartIndex, bodyCountSubtree, subtrees);
-
+    auto endBuildSubtrees = std::chrono::steady_clock::now();
 
 
     computeCenterOfMass_GPU(queue, current_positions_x, current_positions_y, current_positions_z, masses);
 //    computeCenterOfMassSubtrees_GPU(queue, current_positions_x, current_positions_y, current_positions_z, masses, bodyCountSubtree, subtrees);
-
-
     auto end = std::chrono::steady_clock::now();
+
     std::cout << "---------------------------------------------------------- "
-              << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+              << std::chrono::duration<double, std::milli>(end - begin).count()
               << std::endl;
 
-//
+
+    timer.addTimeToSequence("AABB creation", std::chrono::duration<double, std::milli>(endAABB_creation - begin).count());
+    timer.addTimeToSequence("Build octree to level", std::chrono::duration<double, std::milli>(endBuildOctreeToLevel - endAABB_creation).count());
+    timer.addTimeToSequence("Prepare subtrees", std::chrono::duration<double, std::milli>(endPrepareSubtrees - endBuildOctreeToLevel).count());
+    timer.addTimeToSequence("Sort bodies for subtrees", std::chrono::duration<double, std::milli>(endSortBodiesForSubtrees - endPrepareSubtrees).count());
+    timer.addTimeToSequence("Build subtrees", std::chrono::duration<double, std::milli>(endBuildSubtrees - endSortBodiesForSubtrees).count());
+    timer.addTimeToSequence("Compute center of mass", std::chrono::duration<double, std::milli>(end - endBuildSubtrees).count());
+
 //    host_accessor MASSES(sumOfMasses);
 //    host_accessor CX(massCenters_x);
 //    host_accessor CY(massCenters_y);
@@ -150,8 +155,6 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
 
     // build octree in parallel
     queue.submit([&](handler &h) {
-
-
         accessor<int> NODE_LOCKED(nodeIsLocked, h);
         accessor<int> NODE_IS_LEAF(nodeIsLeaf, h);
         accessor<double> POS_X(current_positions_x, h);
@@ -602,7 +605,6 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
         accessor<std::size_t> SUBTREE_OF_NODE(subtreeOfNode, h);
 
 
-
         std::size_t maxLevel = configuration::barnes_hut_algorithm::maxBuildLevel;
         std::size_t localSize = configuration::barnes_hut_algorithm::octreeWorkItemCount;
 
@@ -876,7 +878,7 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
     // set the maximum tree depth
 //    host_accessor maxTreeDepthAccessor(maxTreeDepths);
 //    maxTreeDepth = maxTreeDepthAccessor[0];
-    maxTreeDepth = 50;
+    //maxTreeDepth = 50;
 
 
 }

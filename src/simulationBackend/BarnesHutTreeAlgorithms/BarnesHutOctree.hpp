@@ -5,6 +5,7 @@
 #include <vector>
 #include <sycl/sycl.hpp>
 #include "Configuration.hpp"
+#include "TimeMeasurement.hpp"
 
 using namespace sycl;
 using namespace configuration;
@@ -27,10 +28,7 @@ public:
 
     double AABB_EdgeLength = 0;
 
-    std::size_t maxTreeDepth = 0;
-
     // data structures for linearized octree:
-
     /*
      * Storage for all octants of the tree
      * This field can be imagined as 8 fields, each of size configuration::barnes_hut_algorithm::storageSizeParameter, right after each other.
@@ -93,7 +91,7 @@ public:
     BarnesHutOctree();
 
     virtual void buildOctree(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
-                             buffer<double> &current_positions_z, buffer<double> &masses) = 0;
+                             buffer<double> &current_positions_z, buffer<double> &masses, TimeMeasurement &timer) = 0;
 
     /*
      * This function computes the minimum and maximum x,y,z values of the positions in the simulation data in parallel

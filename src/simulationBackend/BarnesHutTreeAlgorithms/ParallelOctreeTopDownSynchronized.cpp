@@ -4,12 +4,12 @@
 ParallelOctreeTopDownSynchronized::ParallelOctreeTopDownSynchronized() :
         BarnesHutOctree(),
         nodeIsLocked_vec(configuration::barnes_hut_algorithm::storageSizeParameter, 0),
-        nodeIsLocked(nodeIsLocked_vec.data(), nodeIsLocked_vec.size()){}
+        nodeIsLocked(nodeIsLocked_vec.data(), nodeIsLocked_vec.size()) {}
 
 
 void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double> &current_positions_x,
                                                     buffer<double> &current_positions_y,
-                                                    buffer<double> &current_positions_z, buffer<double> &masses) {
+                                                    buffer<double> &current_positions_z, buffer<double> &masses, TimeMeasurement &timer) {
 
     auto begin = std::chrono::steady_clock::now();
 
@@ -437,8 +437,8 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
     }).wait();
 
     // set the maximum tree depth
-    host_accessor maxTreeDepthAccessor(maxTreeDepths);
-    maxTreeDepth = maxTreeDepthAccessor[0];
+    //host_accessor maxTreeDepthAccessor(maxTreeDepths);
+    //maxTreeDepth = maxTreeDepthAccessor[0];
 
 
     computeCenterOfMass_CPU(queue, current_positions_x, current_positions_y, current_positions_z, masses);
@@ -448,12 +448,6 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
               << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
               << std::endl;
 
-
-    host_accessor MASSES(sumOfMasses);
-    if (MASSES[0] == 0) {
-        std::cout << "--------------------------------------------------------------------------------ERROR------------"
-                  << std::endl;
-    }
 //    host_accessor CX(massCenters_x);
 //    host_accessor CY(massCenters_y);
 //    host_accessor CZ(massCenters_z
@@ -486,7 +480,6 @@ void ParallelOctreeTopDownSynchronized::computeCenterOfGravity(queue &queue, buf
     }
 
     std::size_t workItemCount = configuration::barnes_hut_algorithm::octreeWorkItemCount;
-
 
 
     queue.submit([&](handler &h) {

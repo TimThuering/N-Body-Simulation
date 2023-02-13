@@ -22,7 +22,7 @@ public:
      * and uses SYCL for parallelization
      */
     void buildOctree(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
-                     buffer<double> &current_positions_z, buffer<double> &masses) override;
+                     buffer<double> &current_positions_z, buffer<double> &masses,TimeMeasurement &timer) override;
 
     void computeCenterOfGravity(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
                                  buffer<double> &current_positions_z, buffer<double> &masses);

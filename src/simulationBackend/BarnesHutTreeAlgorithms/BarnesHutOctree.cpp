@@ -1,5 +1,6 @@
 #include "BarnesHutOctree.hpp"
 #include "Configuration.hpp"
+#include "TimeMeasurement.hpp"
 
 BarnesHutOctree::BarnesHutOctree() :
         octants_vec(8 * configuration::barnes_hut_algorithm::storageSizeParameter),
@@ -34,7 +35,8 @@ BarnesHutOctree::BarnesHutOctree() :
         massCenters_y(centerOfMass_y_vec.data(), centerOfMass_y_vec.size()),
         massCenters_z(centerOfMass_z_vec.data(), centerOfMass_z_vec.size()),
         nextFreeNodeID_vec(1),
-        nextFreeNodeID(nextFreeNodeID_vec.data(), nextFreeNodeID_vec.size()) {}
+        nextFreeNodeID(nextFreeNodeID_vec.data(), nextFreeNodeID_vec.size()) {
+}
 
 void BarnesHutOctree::computeMinMaxValuesAABB(queue &queue, buffer<double> &current_positions_x,
                                               buffer<double> &current_positions_y,

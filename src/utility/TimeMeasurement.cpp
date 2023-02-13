@@ -3,11 +3,11 @@
 #include <fstream>
 
 void TimeMeasurement::addTimingSequence(const std::string &name) {
-    std::vector<long> timeSequence;
+    std::vector<double> timeSequence;
     times[name] = timeSequence;
 }
 
-void TimeMeasurement::addTimeToSequence(const std::string &sequenceName, long time) {
+void TimeMeasurement::addTimeToSequence(const std::string &sequenceName, double time) {
     times[sequenceName].push_back(time);
 }
 

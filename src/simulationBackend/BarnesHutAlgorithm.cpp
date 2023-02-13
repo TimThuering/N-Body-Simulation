@@ -72,16 +72,31 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
     timer.addTimingSequence("Total Time");
     timer.addTimingSequence("Octree creation");
     timer.addTimingSequence("Acceleration Kernel Time");
+    timer.addTimingSequence("AABB creation");
+    timer.addTimingSequence("Build octree to level");
+    timer.addTimingSequence("Prepare subtrees");
+    timer.addTimingSequence("Sort bodies for subtrees");
+    timer.addTimingSequence("Build subtrees");
+    timer.addTimingSequence("Compute center of mass");
 
     // start of the simulation:
     // computations for initial state: all values get stored for the output
 
-    octree.buildOctree(queue, intermediatePosition_x, intermediatePosition_y, intermediatePosition_z, masses);
+    auto begin1 = std::chrono::steady_clock::now();
+    octree.buildOctree(queue, intermediatePosition_x, intermediatePosition_y, intermediatePosition_z, masses, timer);
+    auto endTreeCreation1 = std::chrono::steady_clock::now();
+
 
     // compute initial accelerations
+    auto beginAccelerationKernel1 = std::chrono::steady_clock::now();
     computeAccelerations(queue, masses, intermediatePosition_x, intermediatePosition_y,
                          intermediatePosition_z,
                          acceleration_x, acceleration_y, acceleration_z);
+    auto end1 = std::chrono::steady_clock::now();
+    timer.addTimeToSequence("Octree creation",std::chrono::duration<double, std::milli>(endTreeCreation1 - begin1).count());
+    timer.addTimeToSequence("Acceleration Kernel Time", std::chrono::duration<double, std::milli>(end1 - beginAccelerationKernel1).count());
+    timer.addTimeToSequence("Total Time",std::chrono::duration<double, std::milli>(end1 - begin1).count());
+
 
 
     // compute energy of the initial step.
@@ -165,11 +180,8 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
 
         auto begin = std::chrono::steady_clock::now();
         octree.buildOctree(queue, intermediatePosition_x, intermediatePosition_y, intermediatePosition_z,
-                           masses);
+                           masses, timer);
         auto endTreeCreation = std::chrono::steady_clock::now();
-
-        timer.addTimeToSequence("Octree creation",
-                                std::chrono::duration_cast<std::chrono::microseconds>(endTreeCreation - begin).count());
 
         auto beginAccelerationKernel = std::chrono::steady_clock::now();
         computeAccelerations(queue, masses, intermediatePosition_x, intermediatePosition_y,
@@ -177,10 +189,9 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
                              acceleration_x, acceleration_y, acceleration_z);
         auto end = std::chrono::steady_clock::now();
 
-        timer.addTimeToSequence("Acceleration Kernel Time", std::chrono::duration_cast<std::chrono::microseconds>(
-                end - beginAccelerationKernel).count());
-        timer.addTimeToSequence("Total Time",
-                                std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count());
+        timer.addTimeToSequence("Octree creation",std::chrono::duration<double, std::milli>(endTreeCreation - begin).count());
+        timer.addTimeToSequence("Acceleration Kernel Time", std::chrono::duration<double, std::milli>(end - beginAccelerationKernel).count());
+        timer.addTimeToSequence("Total Time",std::chrono::duration<double, std::milli>(end - begin).count());
 
 
         std::cout << "Time of step:  " << std::chrono::duration<double, std::milli>(end - begin).count()
@@ -258,27 +269,19 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
     double epsilon_2 = configuration::epsilon2;
 
     queue.submit([&](handler &h) {
-
         accessor<double> POS_X(currentPositions_x, h);
         accessor<double> POS_Y(currentPositions_y, h);
         accessor<double> POS_Z(currentPositions_z, h);
-
         accessor<double> SUM_MASSES(octree.sumOfMasses, h);
-
         accessor<double> ACC_X(acceleration_x, h);
         accessor<double> ACC_Y(acceleration_y, h);
         accessor<double> ACC_Z(acceleration_z, h);
-
         accessor<double> EDGE_LENGTHS(octree.edgeLengths, h);
         accessor<double> CENTER_OF_MASS_X(octree.massCenters_x, h);
         accessor<double> CENTER_OF_MASS_Y(octree.massCenters_y, h);
         accessor<double> CENTER_OF_MASS_Z(octree.massCenters_z, h);
-
         accessor<std::size_t> OCTANTS(octree.octants, h);
-
         accessor<std::size_t> BODY_OF_NODE(octree.bodyOfNode, h);
-
-
         accessor<std::size_t> NODES_ON_STACK(nodesOnStack, h);
 
         std::size_t N = configuration::numberOfBodies;
@@ -365,7 +368,6 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
     }).wait();
 
     auto end = std::chrono::steady_clock::now();
-    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
-              << std::endl;
+    std::cout << std::chrono::duration<double, std::milli>(end - begin).count() << std::endl;
 
 }

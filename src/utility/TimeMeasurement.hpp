@@ -5,7 +5,7 @@
 #include <vector>
 
 class TimeMeasurement {
-    std::map<std::string, std::vector<long>> times;
+    std::map<std::string, std::vector<double>> times;
 
 public:
     std::string algorithmType;
@@ -19,7 +19,7 @@ public:
     /*
      * Adds a time entry to a sequence previously created with the function addTimingSequence.
      */
-    void addTimeToSequence(const std::string& sequenceName, long time);
+    void addTimeToSequence(const std::string& sequenceName, double time);
 
     void exportJSON(const std::string& path);
 
