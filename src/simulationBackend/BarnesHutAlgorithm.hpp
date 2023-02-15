@@ -6,16 +6,25 @@
 #include "ParallelOctreeTopDownSynchronized.hpp"
 #include "ParallelOctreeTopDownSubtrees.hpp"
 #include "SimulationData.hpp"
+#include "Configuration.hpp"
 #include <sycl/sycl.hpp>
 
 using namespace sycl;
+//#define OCTREE_TOP_DOWN_SYNC
+#ifdef OCTREE_TOP_DOWN_SYNC
+    typedef ParallelOctreeTopDownSynchronized Octree;
+#else
+    typedef ParallelOctreeTopDownSubtrees Octree;
+#endif
 
 class BarnesHutAlgorithm : public nBodyAlgorithm {
 public:
 
     // Contains the octree data structure including an operation to build the octree.
-    ParallelOctreeTopDownSubtrees octree;
+    //ParallelOctreeTopDownSubtrees octree;
 //    ParallelOctreeTopDownSynchronized octree;
+
+   Octree octree;
 
     std::vector<std::size_t> nodesOnStack_vec;
     buffer<std::size_t> nodesOnStack;

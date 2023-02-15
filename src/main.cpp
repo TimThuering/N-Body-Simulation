@@ -9,7 +9,7 @@
 int main(int argc, char *argv[]) {
     cxxopts::Options arguments("N-Body-Simulation");
 
-    // add the programm arguments
+    // add the program arguments
     arguments.add_options()
             ("file", "Path to a .csv file containing the data for the simulation",
              cxxopts::value<std::string>());
@@ -28,6 +28,43 @@ int main(int argc, char *argv[]) {
 
     arguments.add_options()
             ("vs_dir", "The top-level output directory for the ParaView output files",
+             cxxopts::value<std::string>());
+
+    arguments.add_options()
+            ("theta", "The theta-value which determines the accuracy of the Barnes-Hut algorithm",
+             cxxopts::value<double>());
+
+    arguments.add_options()
+            ("num_wi_octree", "Determines the number of work-items used to build the octree",
+             cxxopts::value<int>());
+
+    arguments.add_options()
+            ("num_wi_top_octree", "Determines the number of work-items used to build the top of the octree",
+             cxxopts::value<int>());
+
+    arguments.add_options()
+            ("max_level_top_octree", "Determines the maximum level to which the top of the octree gets build",
+             cxxopts::value<int>());
+
+    arguments.add_options()
+            ("num_wi_AABB", "Determines the number of work-items used to calculate the AABB",
+             cxxopts::value<int>());
+
+    arguments.add_options()
+            ("storage_size_param", "Scales the amount of memory for the octree data structures",
+             cxxopts::value<int>());
+
+    arguments.add_options()
+            ("stack_size_param", "Scales the amount of memory for the stack used to traverse the octree",
+             cxxopts::value<int>());
+
+    arguments.add_options()
+            ("block_size",
+             "Determines the size of the blocks after which the local memory is updated in the naive algorithm",
+             cxxopts::value<int>());
+
+    arguments.add_options()
+            ("algorithm", "The algorithm to use for the simulation either <naive> or <BarnesHut>",
              cxxopts::value<std::string>());
 
 
@@ -50,16 +87,81 @@ int main(int argc, char *argv[]) {
     // Storage for simulation the data
     SimulationData simulationData;
 
-
     // parse the csv file containing the simulation data
     InputParser::parse_input(path, simulationData);
 
-    configuration::loadConfiguration(simulationData.mass.size());
 
-    //NaiveAlgorithm algorithm(dt, t_end, visualizationStepWidth, outputDirectoryPath);
-    BarnesHutAlgorithm algorithm(dt, t_end, visualizationStepWidth, outputDirectoryPath);
+    int storageSizeParam;
+    if (options.count("storage_size_param") == 1) {
+        storageSizeParam = options["storage_size_param"].as<int>();
+    } else {
+        storageSizeParam = 16;
+    }
+
+    int stackSizeParam;
+    if (options.count("stack_size_param") == 1) {
+        stackSizeParam = options["stack_size_param"].as<int>();
+    } else {
+        stackSizeParam = 16;
+    }
+
+    configuration::initializeConfigValues(simulationData.mass.size(), storageSizeParam, stackSizeParam);
 
 
-    algorithm.startSimulation(simulationData);
-    algorithm.generateParaViewOutput(simulationData);
+    if (options["algorithm"].as<std::string>() == "naive") {
+        // overwrite default values of naive algorithm if specified as program argument
+
+        if (options.count("block_size") == 1) {
+            configuration::setBlockSize(options["block_size"].as<int>());
+        }
+
+        std::cout << "Naive algorithm configuration:" << std::endl;
+        std::cout << "Block Size: " << configuration::naive_algorithm::tileSizeNaiveAlg << std::endl;
+
+
+    } else if (options["algorithm"].as<std::string>() == "BarnesHut") {
+        // overwrite default values of Barnes-Hut algorithm if specified as program argument
+
+        if (options.count("theta") == 1) {
+            configuration::setTheta(options["theta"].as<double>());
+        }
+
+        if (options.count("num_wi_octree") == 1) {
+            configuration::setOctreeWorkItemCount(options["num_wi_octree"].as<int>());
+        }
+
+        if (options.count("num_wi_top_octree") == 1) {
+            configuration::setOctreeTopWorkItemCount(options["num_wi_top_octree"].as<int>());
+        }
+
+        if (options.count("max_level_top_octree") == 1) {
+            configuration::setMaxBuildLevel(options["max_level_top_octree"].as<int>());
+        }
+
+        if (options.count("num_wi_AABB") == 1) {
+            configuration::setAABBWorkItemCount(options["num_wi_AABB"].as<int>());
+        }
+
+        std::cout << "Barnes-Hut algorithm configuration:" << std::endl;
+        std::cout << "Theta ----------------------------------- " << configuration::barnes_hut_algorithm::theta << std::endl;
+        std::cout << "Work-items AABB creation ---------------- " << configuration::barnes_hut_algorithm::AABBWorkItemCount << std::endl;
+        std::cout << "Work-items octree creation -------------- " << configuration::barnes_hut_algorithm::octreeWorkItemCount << std::endl;
+        std::cout << "Work-items top of octree creation ------- " << configuration::barnes_hut_algorithm::octreeTopWorkItemCount << std::endl;
+        std::cout << "Maximum build level top of octree ------- " << configuration::barnes_hut_algorithm::maxBuildLevel << std::endl;
+        std::cout << std::endl << std::endl;
+
+    } else {
+        throw std::invalid_argument("Algorithm must either be <naive> or <BarnesHut>");
+    }
+
+    if (options["algorithm"].as<std::string>() == "naive") {
+        NaiveAlgorithm algorithm(dt, t_end, visualizationStepWidth, outputDirectoryPath);
+        algorithm.startSimulation(simulationData);
+        algorithm.generateParaViewOutput(simulationData);
+    } else {
+        BarnesHutAlgorithm algorithm(dt, t_end, visualizationStepWidth, outputDirectoryPath);
+        algorithm.startSimulation(simulationData);
+        algorithm.generateParaViewOutput(simulationData);
+    }
+
 }

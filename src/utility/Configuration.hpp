@@ -6,7 +6,6 @@
 #include <sycl/sycl.hpp>
 
 namespace configuration {
-
     // total number of bodies used in the simulation
     extern std::size_t numberOfBodies;
 
@@ -54,6 +53,9 @@ namespace configuration {
         // Number of work-items used for the octree creation
         extern int octreeWorkItemCount;
 
+        // Number of work-items used for the creation of the top levels of the octree
+        extern int octreeTopWorkItemCount;
+
         /*
          * If ParallelOctreeTopDownSubtree is used, this parameter determines the maximum level to which the octree is
          * build in the first Phase.
@@ -63,10 +65,23 @@ namespace configuration {
 
 
     /*
-     * This function will load a configuration and initializes all configuration values
-     * Currently, it only sets default values that can only be determined at runtime.
+     * Initializes the number of bodies used for this simulation and all configuration values that depend on the number of bodies
      */
-    void loadConfiguration(std::size_t bodyCount);
+    void initializeConfigValues(std::size_t bodyCount, int storageSizeParam, int stackSizeParam);
+
+    // setter for the configuration values
+
+    void setBlockSize(int blockSize);
+
+    void setTheta(double theta);
+
+    void setAABBWorkItemCount(int workItemCount);
+
+    void setOctreeWorkItemCount(int workItemCount);
+
+    void setOctreeTopWorkItemCount(int workItemCount);
+
+    void setMaxBuildLevel(int maxLevel);
 
 }
 
