@@ -1,6 +1,7 @@
 #include "TimeMeasurement.hpp"
 #include <iostream>
 #include <fstream>
+#include "Configuration.hpp"
 
 void TimeMeasurement::addTimingSequence(const std::string &name) {
     std::vector<double> timeSequence;
@@ -19,7 +20,20 @@ void TimeMeasurement::exportJSON(const std::string &path) {
     jsonFile << "{ \n";
     jsonFile << "  " << "\"algorithm\": " << "\"" << algorithmType << "\",\n";
     jsonFile << "  " << "\"device\": " << "\"" << device << "\",\n";
+    if (algorithmType == "Naive Algorithm") {
+        jsonFile << "  " << "\"block size\": " << "\"" << configuration::naive_algorithm::tileSizeNaiveAlg << ",\n";
+    } else {
+        jsonFile << "  " << "\"theta\": " << configuration::barnes_hut_algorithm::theta << ",\n";
+        jsonFile << "  " << "\"work-items AABB\": " << configuration::barnes_hut_algorithm::AABBWorkItemCount << ",\n";
+        jsonFile << "  " << "\"work-items octree\": " << configuration::barnes_hut_algorithm::octreeWorkItemCount
+                 << ",\n";
+        jsonFile << "  " << "\"work-items top octree\": " << configuration::barnes_hut_algorithm::octreeTopWorkItemCount
+                 << ",\n";
+        jsonFile << "  " << "\"max build-level top octree\": " << configuration::barnes_hut_algorithm::maxBuildLevel
+                 << ",\n";
+    }
     jsonFile << "  " << "\"body count\": " << bodyCount;
+
 
     for (auto &[sequenceName, timeSequence]: times) {
         jsonFile << ",\n";
