@@ -495,8 +495,21 @@ TEST(TestTreeCreation, testMemFence) {
 
      host_accessor test(testBuff);
 
+     double one_div_sqrt_cpp = 500000000.123546;
+
+
+     double rsqrt_sycl = test[0];
+     double one_div_sqrt_sycl = test[1];
+     for (int i = 0; i < 10; ++i) {
+         one_div_sqrt_cpp= 1.0 / std::sqrt(one_div_sqrt_cpp);
+     }
+
+     std::cout.precision(1000);
      std::cout << test[0] << std::endl;
      std::cout << test[1] << std::endl;
+     std::cout << one_div_sqrt_cpp << std::endl;
+
+     std::cout << "";
 
 
 
