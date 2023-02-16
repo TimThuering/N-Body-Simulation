@@ -123,6 +123,8 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
         accessor<double> CENTER_OF_MASS_Y(massCenters_y, h);
         accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
         accessor<std::size_t> BODY_OF_NODE(bodyOfNode, h);
+        accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
+
 
         double edgeLength = AABB_EdgeLength;
         double minX = min_x;
@@ -150,6 +152,8 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
 
             NODE_LOCKED[0] = 0;
             NODE_IS_LEAF[0] = 1;
+
+            BODY_COUNT_NODE[0] = 0;
 
 
             SUM_MASSES[0] = 0;
@@ -182,6 +186,8 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
         accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
         accessor<std::size_t> NEXT_FREE_NODE_ID(nextFreeNodeID, h);
         accessor<std::size_t> SUBTREE_OF_BODY(subtreeOfBody, h);
+        accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
+
 
 
         // determine the maximum body count per work-item
@@ -339,6 +345,8 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
                                                         OCTANTS[2 * storageSize + idx] = 0;
 
                                                         BODY_OF_NODE[idx] = N;
+
+                                                        BODY_COUNT_NODE[idx] = 0;
 
                                                         NODE_IS_LEAF[idx] = 1;
 
@@ -580,8 +588,6 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
     std::size_t N = configuration::numberOfBodies;
     std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
 
-    std::cout << configuration::use_OpenSYCL << std::endl;
-
 
     // set memory order for load and store operations depending on the SYCL implementation to allow compatibility with DPC++ and OpenSYCL
 #ifdef USE_OPEN_SYCL
@@ -620,6 +626,7 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
         accessor<std::size_t> SORTED_BODIES(sortedBodies, h);
         accessor<std::size_t> SUBTREES(subtrees, h);
         accessor<std::size_t> SUBTREE_OF_NODE(subtreeOfNode, h);
+        accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
 
 
         std::size_t maxLevel = configuration::barnes_hut_algorithm::maxBuildLevel;
@@ -793,6 +800,7 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
 
 
                                                            BODY_OF_NODE[idx] = N;
+                                                           BODY_COUNT_NODE[idx] = 0;
                                                            SUBTREE_OF_NODE[idx] = subTreeRootNode;
 
                                                            NODE_IS_LEAF[idx] = 1;

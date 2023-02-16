@@ -85,6 +85,10 @@ public:
     buffer<double> massCenters_y;
     buffer<double> massCenters_z;
 
+    // stores the number of bodies contained in the cell represented by this node
+    std::vector<std::size_t> bodyCountNode_vec;
+    buffer<std::size_t> bodyCountNode;
+
     /*
      * constructor that initializes all buffers needed for a generic octree. Subclasses of this class might create more buffers.
      */

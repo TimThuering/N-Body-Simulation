@@ -5,7 +5,6 @@
 // initialize with default values
 std::size_t configuration::numberOfBodies = 0;
 double configuration::epsilon2 = std::pow(10, -22);
-bool configuration::use_OpenSYCL = false;
 
 int configuration::naive_algorithm::tileSizeNaiveAlg = 64;
 

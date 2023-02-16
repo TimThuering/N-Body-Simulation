@@ -35,7 +35,10 @@ BarnesHutOctree::BarnesHutOctree() :
         massCenters_y(centerOfMass_y_vec.data(), centerOfMass_y_vec.size()),
         massCenters_z(centerOfMass_z_vec.data(), centerOfMass_z_vec.size()),
         nextFreeNodeID_vec(1),
-        nextFreeNodeID(nextFreeNodeID_vec.data(), nextFreeNodeID_vec.size()) {
+        nextFreeNodeID(nextFreeNodeID_vec.data(), nextFreeNodeID_vec.size()),
+        bodyCountNode_vec(configuration::barnes_hut_algorithm::storageSizeParameter, 0),
+        bodyCountNode(bodyOfNode_vec.data(), bodyOfNode_vec.size())
+        {
 }
 
 void BarnesHutOctree::computeMinMaxValuesAABB(queue &queue, buffer<double> &current_positions_x,
@@ -204,6 +207,7 @@ void BarnesHutOctree::prepareCenterOfMass(queue &queue, buffer<double> &current_
         accessor<double> POS_Z(current_positions_z, h);
         accessor<int> NODE_IS_LEAF(nodeIsLeaf, h);
         accessor<std::size_t> BODY_OF_NODE(bodyOfNode, h);
+        accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
 
         h.parallel_for(sycl::range<1>(numberOfNodes), [=](auto &i) {
             std::size_t bodyInNode = BODY_OF_NODE[i];
@@ -213,6 +217,7 @@ void BarnesHutOctree::prepareCenterOfMass(queue &queue, buffer<double> &current_
                 CENTER_OF_MASS_Y[i] = POS_Y[bodyInNode] * MASSES[bodyInNode];
                 CENTER_OF_MASS_Z[i] = POS_Z[bodyInNode] * MASSES[bodyInNode];
                 SUM_MASSES[i] = MASSES[bodyInNode];
+                BODY_COUNT_NODE[i] = 1;
             }
         });
     }).wait();
@@ -253,6 +258,7 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
         accessor<std::size_t> OCTANTS(octants, h);
         accessor<std::size_t> BODY_OF_NODE(bodyOfNode, h);
         accessor<std::size_t> NODES_TO_PROCESS(nodesToProcessCenterOfMass, h);
+        accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
 
 
         h.parallel_for(nd_range<1>(range<1>(workItemCount), range<1>(workItemCount)), [=](auto &nd_item) {
@@ -296,13 +302,16 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
                         double centerMassX = 0;
                         double centerMassY = 0;
                         double centerMassZ = 0;
+                        std::size_t bodyCount = 0;
                         for (int octant = 0; octant < 8; ++octant) {
                             std::size_t octantID = OCTANTS[index + octant * storageSize];
                             centerMassX += CENTER_OF_MASS_X[octantID];
                             centerMassY += CENTER_OF_MASS_Y[octantID];
                             centerMassZ += CENTER_OF_MASS_Z[octantID];
                             sumMasses += SUM_MASSES[octantID];
+                            bodyCount += BODY_COUNT_NODE[octantID];
                         }
+                        BODY_COUNT_NODE[index] = bodyCount;
                         CENTER_OF_MASS_X[index] = centerMassX;
                         CENTER_OF_MASS_Y[index] = centerMassY;
                         CENTER_OF_MASS_Z[index] = centerMassZ;
@@ -355,13 +364,16 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
                             double centerMassX = 0;
                             double centerMassY = 0;
                             double centerMassZ = 0;
+                            std::size_t bodyCount = 0;
                             for (int octant = 0; octant < 8; ++octant) {
                                 std::size_t octantID = OCTANTS[index + octant * storageSize];
                                 centerMassX += CENTER_OF_MASS_X[octantID];
                                 centerMassY += CENTER_OF_MASS_Y[octantID];
                                 centerMassZ += CENTER_OF_MASS_Z[octantID];
                                 sumMasses += SUM_MASSES[octantID];
+                                bodyCount += BODY_COUNT_NODE[octantID];
                             }
+                            BODY_COUNT_NODE[index] = bodyCount;
                             CENTER_OF_MASS_X[index] = centerMassX;
                             CENTER_OF_MASS_Y[index] = centerMassY;
                             CENTER_OF_MASS_Z[index] = centerMassZ;
@@ -376,6 +388,7 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
             }
         });
     }).wait();
+
 
 
 }
