@@ -7,10 +7,10 @@
 #include "ParallelOctreeTopDownSubtrees.hpp"
 #include "SimulationData.hpp"
 #include "Configuration.hpp"
+#include "Definitions.hpp"
 #include <sycl/sycl.hpp>
 
 using namespace sycl;
-#define OCTREE_TOP_DOWN_SYNC
 #ifdef OCTREE_TOP_DOWN_SYNC
     typedef ParallelOctreeTopDownSynchronized Octree;
 #else
