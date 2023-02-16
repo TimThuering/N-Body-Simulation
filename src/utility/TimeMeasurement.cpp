@@ -36,13 +36,16 @@ void TimeMeasurement::exportJSON(const std::string &path) {
 
 
     for (auto &[sequenceName, timeSequence]: times) {
-        jsonFile << ",\n";
+        if (!timeSequence.empty()) {
+            jsonFile << ",\n";
 
-        jsonFile << "  \"" << sequenceName << "\"" << ": " << "[";
-        for (int t = 0; t < timeSequence.size() - 1; ++t) {
-            jsonFile << timeSequence[t] << ", ";
+            jsonFile << "  \"" << sequenceName << "\"" << ": " << "[";
+            for (int t = 0; t < timeSequence.size() - 1; ++t) {
+                jsonFile << timeSequence[t] << ", ";
+            }
+            jsonFile << timeSequence[timeSequence.size() - 1] << "]";
         }
-        jsonFile << timeSequence[timeSequence.size() - 1] << "]";
+
     }
     jsonFile << "\n}";
 
