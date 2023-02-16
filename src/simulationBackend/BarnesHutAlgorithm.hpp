@@ -10,7 +10,7 @@
 #include <sycl/sycl.hpp>
 
 using namespace sycl;
-//#define OCTREE_TOP_DOWN_SYNC
+#define OCTREE_TOP_DOWN_SYNC
 #ifdef OCTREE_TOP_DOWN_SYNC
     typedef ParallelOctreeTopDownSynchronized Octree;
 #else

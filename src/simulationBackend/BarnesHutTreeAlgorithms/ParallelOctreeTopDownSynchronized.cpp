@@ -1,5 +1,6 @@
 #include "ParallelOctreeTopDownSynchronized.hpp"
 #include "Configuration.hpp"
+#include "Definitions.hpp"
 
 ParallelOctreeTopDownSynchronized::ParallelOctreeTopDownSynchronized() :
         BarnesHutOctree(),
@@ -17,13 +18,20 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
     computeMinMaxValuesAABB(queue, current_positions_x, current_positions_y, current_positions_z);
 
 
-    // storage for the maxTreeDepth which will be atomically accessed
-    std::vector<std::size_t> maxTreeDepth_vec(1, 0);
-    buffer<std::size_t> maxTreeDepths(maxTreeDepth_vec.data(), maxTreeDepth_vec.size());
-
-
     std::size_t N = configuration::numberOfBodies;
     std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
+
+
+    // set memory order for load and store operations depending on the SYCL implementation to allow compatibility with DPC++ and OpenSYCL
+#ifdef USE_OPEN_SYCL
+    const sycl::memory_order memoryOrderReference = sycl::memory_order::acq_rel;
+    const sycl::memory_order memoryOrderLoad = sycl::memory_order::acq_rel;
+    const sycl::memory_order memoryOrderStore = sycl::memory_order::acq_rel;
+#else
+    const sycl::memory_order memoryOrderReference = sycl::memory_order::acq_rel;
+    const sycl::memory_order memoryOrderLoad = sycl::memory_order::acquire;
+    const sycl::memory_order memoryOrderStore = sycl::memory_order::release;
+#endif
 
 
     // initialize data structures for an empty tree
@@ -88,7 +96,6 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
 
         accessor<int> NODE_LOCKED(nodeIsLocked, h);
         accessor<int> NODE_IS_LEAF(nodeIsLeaf, h);
-        accessor<std::size_t> MAX_TREE_DEPTH(maxTreeDepths, h);
         accessor<double> POS_X(current_positions_x, h);
         accessor<double> POS_Y(current_positions_y, h);
         accessor<double> POS_Z(current_positions_z, h);
@@ -124,8 +131,6 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                     atomic_ref<std::size_t, memory_order::acq_rel, memory_scope::device,
                             access::address_space::global_space> nextFreeNodeIDAccessor(NEXT_FREE_NODE_ID[0]);
 
-                    atomic_ref<std::size_t, memory_order::acq_rel, memory_scope::device,
-                            access::address_space::global_space> max_tree_depth(MAX_TREE_DEPTH[0]);
 
                     // for all bodies assigned to this work-item.
                     for (std::size_t i = nd_item.get_global_id() * bodyCountPerWorkItem;
@@ -148,18 +153,18 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                                         access::address_space::global_space> atomicNodeIsLockedAccessor(
                                         NODE_LOCKED[currentNode]);
 
-                                atomic_ref<int, memory_order::acq_rel, memory_scope::device,
+                                atomic_ref<int, memoryOrderReference, memory_scope::device,
                                         access::address_space::global_space> atomicNodeIsLeafAccessor(
                                         NODE_IS_LEAF[currentNode]);
 
-                                if (atomicNodeIsLeafAccessor.load(memory_order::acquire, memory_scope::device) == 1) {
+                                if (atomicNodeIsLeafAccessor.load(memoryOrderLoad, memory_scope::device) == 1) {
                                     // the current node is a leaf node, try to lock the node and insert body
 
                                     if (atomicNodeIsLockedAccessor.compare_exchange_strong(exp, 1,
                                                                                            memory_order::acq_rel,
                                                                                            memory_scope::device)) {
 
-                                        if (atomicNodeIsLeafAccessor.load(memory_order::acquire,
+                                        if (atomicNodeIsLeafAccessor.load(memoryOrderLoad,
                                                                           memory_scope::device) == 1) {
                                             // node is locked and still a leaf node --> it is safe to continue with insertion
 
@@ -197,7 +202,6 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
 //                                                                             memory_order::relaxed,
 //                                                                             memory_scope::device);
 
-                                                max_tree_depth.fetch_max(currentDepth);
                                                 nodeInserted = true;
                                                 //sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
                                                 nd_item.mem_fence(access::fence_space::global_and_local);
@@ -364,7 +368,7 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                                                 //sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
                                                 nd_item.mem_fence(access::fence_space::global_and_local);
                                                 // mark the current node as a non leaf node
-                                                atomicNodeIsLeafAccessor.store(0, memory_order::release,
+                                                atomicNodeIsLeafAccessor.store(0, memoryOrderStore,
                                                                                memory_scope::device);
                                             }
                                             // sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
@@ -436,9 +440,6 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                 });
     }).wait();
 
-    // set the maximum tree depth
-    //host_accessor maxTreeDepthAccessor(maxTreeDepths);
-    //maxTreeDepth = maxTreeDepthAccessor[0];
 
 
     computeCenterOfMass_CPU(queue, current_positions_x, current_positions_y, current_positions_z, masses);

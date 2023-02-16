@@ -1,5 +1,6 @@
 #include "ParallelOctreeTopDownSubtrees.hpp"
 #include "Configuration.hpp"
+#include "Definitions.hpp"
 
 ParallelOctreeTopDownSubtrees::ParallelOctreeTopDownSubtrees() :
         BarnesHutOctree(),
@@ -26,7 +27,6 @@ void ParallelOctreeTopDownSubtrees::buildOctree(queue &queue, buffer<double> &cu
 
     buildOctreeToLevel(queue, current_positions_x, current_positions_y, current_positions_z, masses);
     auto endBuildOctreeToLevel = std::chrono::steady_clock::now();
-
 
     std::size_t nodeCount;
     {
@@ -96,6 +96,16 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
     std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
     int maxLevel = configuration::barnes_hut_algorithm::maxBuildLevel;
 
+    // set memory order for load and store operations depending on the SYCL implementation to allow compatibility with DPC++ and OpenSYCL
+#ifdef USE_OPEN_SYCL
+    const sycl::memory_order memoryOrderReference = sycl::memory_order::acq_rel;
+    const sycl::memory_order memoryOrderLoad = sycl::memory_order::acq_rel;
+    const sycl::memory_order memoryOrderStore = sycl::memory_order::acq_rel;
+#else
+    const sycl::memory_order memoryOrderReference = sycl::memory_order::acq_rel;
+    const sycl::memory_order memoryOrderLoad = sycl::memory_order::acquire;
+    const sycl::memory_order memoryOrderStore = sycl::memory_order::release;
+#endif
 
     // initialize data structures for an empty tree
     queue.submit([&](handler &h) {
@@ -160,7 +170,6 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
         accessor<double> POS_X(current_positions_x, h);
         accessor<double> POS_Y(current_positions_y, h);
         accessor<double> POS_Z(current_positions_z, h);
-        accessor<double> MASSES(masses, h);
         accessor<std::size_t> OCTANTS(octants, h);
         accessor<double> EDGE_LENGTHS(edgeLengths, h);
         accessor<double> MIN_X(min_x_values, h);
@@ -198,8 +207,6 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
                     for (std::size_t i = nd_item.get_global_id() * bodyCountPerWorkItem;
                          i <
                          (std::size_t) (nd_item.get_global_id() * bodyCountPerWorkItem + bodyCountPerWorkItem); ++i) {
-//                        for (std::size_t i = 0; i < N; ++i) {
-
                         // check if body ID actually exists
                         if (i < N) {
                             SUBTREE_OF_BODY[i] = 0;
@@ -217,13 +224,13 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
                                         access::address_space::global_space> atomicNodeIsLockedAccessor(
                                         NODE_LOCKED[currentNode]);
 
-                                atomic_ref<int, memory_order::acq_rel, memory_scope::device,
+                                atomic_ref<int, memoryOrderReference, memory_scope::device,
                                         access::address_space::global_space> atomicNodeIsLeafAccessor(
                                         NODE_IS_LEAF[currentNode]);
 
                                 if (currentDepth < maxLevel) {
 
-                                    if (atomicNodeIsLeafAccessor.load(memory_order::acquire, memory_scope::device) ==
+                                    if (atomicNodeIsLeafAccessor.load(memoryOrderLoad, memory_scope::device) ==
                                         1) {
                                         // the current node is a leaf node, try to lock the node and insert body
 
@@ -231,7 +238,7 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
                                                                                                memory_order::acq_rel,
                                                                                                memory_scope::device)) {
 
-                                            if (atomicNodeIsLeafAccessor.load(memory_order::acquire,
+                                            if (atomicNodeIsLeafAccessor.load(memoryOrderLoad,
                                                                               memory_scope::device) == 1) {
                                                 // node is locked and still a leaf node --> it is safe to continue with insertion
 
@@ -386,7 +393,7 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
 //                                                    sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
                                                     nd_item.mem_fence(access::fence_space::global_and_local);
                                                     // mark the current node as a non leaf node
-                                                    atomicNodeIsLeafAccessor.store(0, memory_order::release,
+                                                    atomicNodeIsLeafAccessor.store(0, memoryOrderStore,
                                                                                    memory_scope::device);
                                                 }
 
@@ -573,6 +580,19 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
     std::size_t N = configuration::numberOfBodies;
     std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
 
+    std::cout << configuration::use_OpenSYCL << std::endl;
+
+
+    // set memory order for load and store operations depending on the SYCL implementation to allow compatibility with DPC++ and OpenSYCL
+#ifdef USE_OPEN_SYCL
+    const sycl::memory_order memoryOrderReference = sycl::memory_order::acq_rel;
+    const sycl::memory_order memoryOrderLoad = sycl::memory_order::acq_rel;
+    const sycl::memory_order memoryOrderStore = sycl::memory_order::acq_rel;
+#else
+    const sycl::memory_order memoryOrderReference = sycl::memory_order::acq_rel;
+    const sycl::memory_order memoryOrderLoad = sycl::memory_order::acquire;
+    const sycl::memory_order memoryOrderStore = sycl::memory_order::release;
+#endif
 
 
     // build octree in parallel
@@ -581,11 +601,9 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
 
         accessor<int> NODE_LOCKED(nodeIsLocked, h);
         accessor<int> NODE_IS_LEAF(nodeIsLeaf, h);
-        accessor<std::size_t> MAX_TREE_DEPTH(maxTreeDepths, h);
         accessor<double> POS_X(current_positions_x, h);
         accessor<double> POS_Y(current_positions_y, h);
         accessor<double> POS_Z(current_positions_z, h);
-        accessor<double> MASSES(masses, h);
         accessor<std::size_t> OCTANTS(octants, h);
         accessor<double> EDGE_LENGTHS(edgeLengths, h);
         accessor<double> MIN_X(min_x_values, h);
@@ -601,7 +619,6 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
         accessor<std::size_t> BODY_COUNT_SUBTREE(bodyCountSubtree, h);
         accessor<std::size_t> SORTED_BODIES(sortedBodies, h);
         accessor<std::size_t> SUBTREES(subtrees, h);
-        accessor<std::size_t> SUBTREE_OF_BODY(subtreeOfBody, h);
         accessor<std::size_t> SUBTREE_OF_NODE(subtreeOfNode, h);
 
 
@@ -614,9 +631,6 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
 
                            atomic_ref<std::size_t, memory_order::acq_rel, memory_scope::device,
                                    access::address_space::global_space> nextFreeNodeIDAccessor(NEXT_FREE_NODE_ID[0]);
-
-//                           atomic_ref<std::size_t, memory_order::acq_rel, memory_scope::device,
-//                                   access::address_space::global_space> max_tree_depth(MAX_TREE_DEPTH[0]);
 
                            std::size_t workGroupID = nd_item.get_group_linear_id();
                            std::size_t subTreeRootNode = SUBTREES[workGroupID];
@@ -660,11 +674,11 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
                                                access::address_space::global_space> atomicNodeIsLockedAccessor(
                                                NODE_LOCKED[currentNode]);
 
-                                       atomic_ref<int, memory_order::acq_rel, memory_scope::device,
+                                       atomic_ref<int, memoryOrderReference, memory_scope::device,
                                                access::address_space::global_space> atomicNodeIsLeafAccessor(
                                                NODE_IS_LEAF[currentNode]);
 
-                                       if (atomicNodeIsLeafAccessor.load(memory_order::acquire,
+                                       if (atomicNodeIsLeafAccessor.load(memoryOrderLoad,
                                                                          memory_scope::device) ==
                                            1) {
                                            // the current node is a leaf node, try to lock the node and insert body
@@ -673,7 +687,7 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
                                                                                                   memory_order::acq_rel,
                                                                                                   memory_scope::device)) {
 
-                                               if (atomicNodeIsLeafAccessor.load(memory_order::acquire,
+                                               if (atomicNodeIsLeafAccessor.load(memoryOrderLoad,
                                                                                  memory_scope::device) == 1) {
                                                    // node is locked and still a leaf node --> it is safe to continue with insertion
 
@@ -827,13 +841,13 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
                                                        //sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
                                                        nd_item.mem_fence(access::fence_space::global_and_local);
                                                        // mark the current node as a non leaf node
-                                                       atomicNodeIsLeafAccessor.store(0, memory_order::release,
+                                                       atomicNodeIsLeafAccessor.store(0, memoryOrderStore,
                                                                                       memory_scope::device);
                                                    }
                                                    // sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
-                                                   //nd_item.mem_fence(access::fence_space::global_and_local);
                                                }
                                                // release the lock
+                                               nd_item.mem_fence(access::fence_space::global_and_local);
                                                atomicNodeIsLockedAccessor.fetch_sub(1, memory_order::acq_rel,
                                                                                     memory_scope::device);
                                            }
@@ -874,13 +888,6 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
                            }
                        });
     }).wait();
-
-    // set the maximum tree depth
-//    host_accessor maxTreeDepthAccessor(maxTreeDepths);
-//    maxTreeDepth = maxTreeDepthAccessor[0];
-    //maxTreeDepth = 50;
-
-
 }
 
 void ParallelOctreeTopDownSubtrees::computeCenterOfMassSubtrees_GPU(queue &queue, buffer<double> &current_positions_x,
@@ -925,8 +932,6 @@ void ParallelOctreeTopDownSubtrees::computeCenterOfMassSubtrees_GPU(queue &queue
 
     std::size_t workItemCount = configuration::barnes_hut_algorithm::octreeWorkItemCount;
 
-
-    std::cout << "";
 
     queue.submit([&](handler &h) {
         accessor<double> SUM_MASSES(sumOfMasses, h);
