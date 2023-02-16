@@ -67,6 +67,11 @@ int main(int argc, char *argv[]) {
             ("algorithm", "The algorithm to use for the simulation either <naive> or <BarnesHut>",
              cxxopts::value<std::string>());
 
+    arguments.add_options()
+            ("energy",
+             "Turn on energy calculation of the system for each visualized time step. Can increase the runtime for large amounts of bodies.",
+             cxxopts::value<bool>());
+
 
     auto options = arguments.parse(argc, argv);
 
@@ -107,6 +112,10 @@ int main(int argc, char *argv[]) {
 
     configuration::initializeConfigValues(simulationData.mass.size(), storageSizeParam, stackSizeParam);
 
+    if (options.count("energy") == 1) {
+        configuration::setEnergyComputation(options["energy"].as<bool>());
+    }
+
 
     if (options["algorithm"].as<std::string>() == "naive") {
         // overwrite default values of naive algorithm if specified as program argument
@@ -143,11 +152,16 @@ int main(int argc, char *argv[]) {
         }
 
         std::cout << "Barnes-Hut algorithm configuration:" << std::endl;
-        std::cout << "Theta ----------------------------------- " << configuration::barnes_hut_algorithm::theta << std::endl;
-        std::cout << "Work-items AABB creation ---------------- " << configuration::barnes_hut_algorithm::AABBWorkItemCount << std::endl;
-        std::cout << "Work-items octree creation -------------- " << configuration::barnes_hut_algorithm::octreeWorkItemCount << std::endl;
-        std::cout << "Work-items top of octree creation ------- " << configuration::barnes_hut_algorithm::octreeTopWorkItemCount << std::endl;
-        std::cout << "Maximum build level top of octree ------- " << configuration::barnes_hut_algorithm::maxBuildLevel << std::endl;
+        std::cout << "Theta ----------------------------------- " << configuration::barnes_hut_algorithm::theta
+                  << std::endl;
+        std::cout << "Work-items AABB creation ---------------- "
+                  << configuration::barnes_hut_algorithm::AABBWorkItemCount << std::endl;
+        std::cout << "Work-items octree creation -------------- "
+                  << configuration::barnes_hut_algorithm::octreeWorkItemCount << std::endl;
+        std::cout << "Work-items top of octree creation ------- "
+                  << configuration::barnes_hut_algorithm::octreeTopWorkItemCount << std::endl;
+        std::cout << "Maximum build level top of octree ------- " << configuration::barnes_hut_algorithm::maxBuildLevel
+                  << std::endl;
         std::cout << std::endl << std::endl;
 
     } else {

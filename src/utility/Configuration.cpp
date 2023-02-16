@@ -5,6 +5,7 @@
 // initialize with default values
 std::size_t configuration::numberOfBodies = 0;
 double configuration::epsilon2 = std::pow(10, -22);
+bool configuration::compute_energy = false;
 
 int configuration::naive_algorithm::tileSizeNaiveAlg = 64;
 
@@ -47,4 +48,8 @@ void configuration::setOctreeTopWorkItemCount(int workItemCount) {
 
 void configuration::setMaxBuildLevel(int maxLevel) {
     configuration::barnes_hut_algorithm::maxBuildLevel = maxLevel;
+}
+
+void configuration::setEnergyComputation(bool computeEnergy) {
+    configuration::compute_energy = computeEnergy;
 }

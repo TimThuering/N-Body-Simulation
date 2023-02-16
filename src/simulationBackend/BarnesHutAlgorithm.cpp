@@ -8,8 +8,9 @@ using namespace sycl;
 BarnesHutAlgorithm::BarnesHutAlgorithm(double dt, double tEnd, double visualizationStepWidth,
                                        std::string &outputDirectory)
         : nBodyAlgorithm(dt, tEnd, visualizationStepWidth, outputDirectory),
-          nodesOnStack_vec(configuration::barnes_hut_algorithm::stackSize * configuration::numberOfBodies, octree.bodyOfNode.size()),
-          nodesOnStack(nodesOnStack_vec.data(), nodesOnStack_vec.size()){
+          nodesOnStack_vec(configuration::barnes_hut_algorithm::stackSize * configuration::numberOfBodies,
+                           octree.bodyOfNode.size()),
+          nodesOnStack(nodesOnStack_vec.data(), nodesOnStack_vec.size()) {
     this->description = "Barnes-Hut Algorithm";
 }
 
@@ -93,15 +94,19 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
                          intermediatePosition_z,
                          acceleration_x, acceleration_y, acceleration_z);
     auto end1 = std::chrono::steady_clock::now();
-    timer.addTimeToSequence("Octree creation",std::chrono::duration<double, std::milli>(endTreeCreation1 - begin1).count());
-    timer.addTimeToSequence("Acceleration Kernel Time", std::chrono::duration<double, std::milli>(end1 - beginAccelerationKernel1).count());
-    timer.addTimeToSequence("Total Time",std::chrono::duration<double, std::milli>(end1 - begin1).count());
+    timer.addTimeToSequence("Octree creation",
+                            std::chrono::duration<double, std::milli>(endTreeCreation1 - begin1).count());
+    timer.addTimeToSequence("Acceleration Kernel Time",
+                            std::chrono::duration<double, std::milli>(end1 - beginAccelerationKernel1).count());
+    timer.addTimeToSequence("Total Time", std::chrono::duration<double, std::milli>(end1 - begin1).count());
 
 
-
-    // compute energy of the initial step.
-    computeEnergy(queue, masses, currentStep, intermediatePosition_x, intermediatePosition_y, intermediatePosition_z,
-                  intermediateVelocity_x, intermediateVelocity_y, intermediateVelocity_z);
+    if (configuration::compute_energy) {
+        // compute energy of the initial step.
+        computeEnergy(queue, masses, currentStep, intermediatePosition_x, intermediatePosition_y,
+                      intermediatePosition_z,
+                      intermediateVelocity_x, intermediateVelocity_y, intermediateVelocity_z);
+    }
 
 
     // store norm of all accelerations
@@ -189,9 +194,11 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
                              acceleration_x, acceleration_y, acceleration_z);
         auto end = std::chrono::steady_clock::now();
 
-        timer.addTimeToSequence("Octree creation",std::chrono::duration<double, std::milli>(endTreeCreation - begin).count());
-        timer.addTimeToSequence("Acceleration Kernel Time", std::chrono::duration<double, std::milli>(end - beginAccelerationKernel).count());
-        timer.addTimeToSequence("Total Time",std::chrono::duration<double, std::milli>(end - begin).count());
+        timer.addTimeToSequence("Octree creation",
+                                std::chrono::duration<double, std::milli>(endTreeCreation - begin).count());
+        timer.addTimeToSequence("Acceleration Kernel Time",
+                                std::chrono::duration<double, std::milli>(end - beginAccelerationKernel).count());
+        timer.addTimeToSequence("Total Time", std::chrono::duration<double, std::milli>(end - begin).count());
 
 
         std::cout << "Time of step:  " << std::chrono::duration<double, std::milli>(end - begin).count()
@@ -237,10 +244,13 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
                 }
             }
 
-            // compute and store energy values of the system in the current time step
-            computeEnergy(queue, masses, currentStep, intermediatePosition_x, intermediatePosition_y,
-                          intermediatePosition_z, intermediateVelocity_x, intermediateVelocity_y,
-                          intermediateVelocity_z);
+            if (configuration::compute_energy) {
+                // compute and store energy values of the system in the current time step
+                computeEnergy(queue, masses, currentStep, intermediatePosition_x, intermediatePosition_y,
+                              intermediatePosition_z, intermediateVelocity_x, intermediateVelocity_y,
+                              intermediateVelocity_z);
+            }
+
 
             // reset time for next visualization time step
             currentStep += 1;

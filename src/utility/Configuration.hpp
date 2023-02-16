@@ -12,6 +12,9 @@ namespace configuration {
     // Softening factor for the acceleration computation
     extern double epsilon2;
 
+    // compute the energy of the system in each visualized time step.
+    extern bool compute_energy;
+
     namespace naive_algorithm {
         /*
          * Used by the naive algorithm.
@@ -82,6 +85,8 @@ namespace configuration {
     void setOctreeTopWorkItemCount(int workItemCount);
 
     void setMaxBuildLevel(int maxLevel);
+
+    void setEnergyComputation(bool computeEnergy);
 
 }
 
