@@ -31,6 +31,8 @@ void TimeMeasurement::exportJSON(const std::string &path) {
                  << ",\n";
         jsonFile << "  " << "\"max build-level top octree\": " << configuration::barnes_hut_algorithm::maxBuildLevel
                  << ",\n";
+        jsonFile << "  " << "\"bodies sorted\": " << configuration::barnes_hut_algorithm::sortBodies
+                 << ",\n";
     }
     jsonFile << "  " << "\"body count\": " << bodyCount;
 

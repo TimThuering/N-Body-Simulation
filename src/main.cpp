@@ -72,6 +72,11 @@ int main(int argc, char *argv[]) {
              "Turn on energy calculation of the system for each visualized time step. Can increase the runtime for large amounts of bodies.",
              cxxopts::value<bool>());
 
+    arguments.add_options()
+            ("sort_bodies",
+             "Turns on sorting of the bodies according to their position in the octree",
+             cxxopts::value<bool>());
+
 
     auto options = arguments.parse(argc, argv);
 
@@ -151,6 +156,10 @@ int main(int argc, char *argv[]) {
             configuration::setAABBWorkItemCount(options["num_wi_AABB"].as<int>());
         }
 
+        if (options.count("sort_bodies")) {
+            configuration::setSortBodies(options["sort_bodies"].as<bool>());
+        }
+
         std::cout << "Barnes-Hut algorithm configuration:" << std::endl;
         std::cout << "Theta ----------------------------------- " << configuration::barnes_hut_algorithm::theta
                   << std::endl;
@@ -161,6 +170,8 @@ int main(int argc, char *argv[]) {
         std::cout << "Work-items top of octree creation ------- "
                   << configuration::barnes_hut_algorithm::octreeTopWorkItemCount << std::endl;
         std::cout << "Maximum build level top of octree ------- " << configuration::barnes_hut_algorithm::maxBuildLevel
+                  << std::endl;
+        std::cout << "Sort Bodies enabled --------------------- " << configuration::barnes_hut_algorithm::sortBodies
                   << std::endl;
         std::cout << std::endl << std::endl;
 

@@ -79,6 +79,9 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
     timer.addTimingSequence("Sort bodies for subtrees");
     timer.addTimingSequence("Build subtrees");
     timer.addTimingSequence("Compute center of mass");
+    if (configuration::barnes_hut_algorithm::sortBodies) {
+        timer.addTimingSequence("Sort bodies");
+    }
 
     // start of the simulation:
     // computations for initial state: all values get stored for the output
@@ -293,6 +296,7 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
         accessor<std::size_t> OCTANTS(octree.octants, h);
         accessor<std::size_t> BODY_OF_NODE(octree.bodyOfNode, h);
         accessor<std::size_t> NODES_ON_STACK(nodesOnStack, h);
+        accessor<std::size_t> SORTED_BODIES(octree.sortedBodiesInOrder, h);
 
         std::size_t N = configuration::numberOfBodies;
         double G = this->G;
@@ -302,18 +306,29 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
 
         std::size_t stack_size = configuration::barnes_hut_algorithm::stackSize;
 
+        bool bodiesSorted = configuration::barnes_hut_algorithm::sortBodies;
 
-        h.parallel_for(sycl::range<1>(configuration::numberOfBodies), [=](auto &i) {
+
+        h.parallel_for(sycl::range<1>(configuration::numberOfBodies), [=](auto &idx) {
             double acc_x = 0;
             double acc_y = 0;
             double acc_z = 0;
+
+            std::size_t i;
+            if (bodiesSorted) {
+                i = SORTED_BODIES[idx];
+
+            } else {
+                i = idx;
+            }
+
 
             double pos_x_i = POS_X[i];
             double pos_y_i = POS_Y[i];
             double pos_z_i = POS_Z[i];
 
 
-            int currentStackIndex = (stack_size * i) + 1; // start index for the stack of current work item.
+            std::size_t currentStackIndex = (stack_size * i) + 1; // start index for the stack of current work item.
             NODES_ON_STACK[currentStackIndex] = 0; // push the root node on the stack
 
             while (currentStackIndex != (stack_size * i)) {
@@ -327,9 +342,9 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
                     double d_x = (CENTER_OF_MASS_X[current_Node] / SUM_MASSES[current_Node]) - pos_x_i;
                     double d_y = (CENTER_OF_MASS_Y[current_Node] / SUM_MASSES[current_Node]) - pos_y_i;
                     double d_z = (CENTER_OF_MASS_Z[current_Node] / SUM_MASSES[current_Node]) - pos_z_i;
-                    double d = sycl::sqrt(d_x * d_x + d_y * d_y + d_z * d_z);
+                    double d = sycl::rsqrt(d_x * d_x + d_y * d_y + d_z * d_z);
 
-                    double currentTheta = EDGE_LENGTHS[current_Node] / d;
+                    double currentTheta = EDGE_LENGTHS[current_Node] * d;
                     if (((currentTheta < THETA) || BODY_OF_NODE[current_Node] != N)) {
                         // center of mass of the node can be used to compute the acceleration
 

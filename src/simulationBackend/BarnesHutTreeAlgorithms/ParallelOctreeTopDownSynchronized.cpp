@@ -18,6 +18,9 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
     computeMinMaxValuesAABB(queue, current_positions_x, current_positions_y, current_positions_z);
 
 
+    std::vector<std::size_t> maxTreeDepth_vec(1, 0);
+    buffer<std::size_t> maxTreeDepths(maxTreeDepth_vec.data(), maxTreeDepth_vec.size());
+
     std::size_t N = configuration::numberOfBodies;
     std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
 
@@ -99,7 +102,7 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
         accessor<double> POS_X(current_positions_x, h);
         accessor<double> POS_Y(current_positions_y, h);
         accessor<double> POS_Z(current_positions_z, h);
-//        accessor<double> MASSES(masses, h);
+        accessor<double> MASSES(masses, h);
         accessor<std::size_t> OCTANTS(octants, h);
         accessor<double> EDGE_LENGTHS(edgeLengths, h);
         accessor<double> MIN_X(min_x_values, h);
@@ -201,6 +204,7 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
 //                                                atomicCenterMass_Z.fetch_add(POS_Z[i] * MASSES[i],
 //                                                                             memory_order::relaxed,
 //                                                                             memory_scope::device);
+
 
                                                 nodeInserted = true;
                                                 //sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
@@ -440,14 +444,21 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                 });
     }).wait();
 
-
-
-    computeCenterOfMass_CPU(queue, current_positions_x, current_positions_y, current_positions_z, masses);
-
     auto end = std::chrono::steady_clock::now();
     std::cout << "---------------------------------------------------------- "
               << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
               << std::endl;
+
+    if (queue.get_device().is_gpu()) {
+        computeCenterOfMass_GPU(queue, current_positions_x, current_positions_y, current_positions_z, masses);
+    } else {
+        computeCenterOfMass_CPU(queue, current_positions_x, current_positions_y, current_positions_z, masses);
+    }
+
+    if (configuration::barnes_hut_algorithm::sortBodies) {
+        sortBodies(queue, current_positions_x, current_positions_y, current_positions_z);
+    }
+
 
 //    host_accessor CX(massCenters_x);
 //    host_accessor CY(massCenters_y);

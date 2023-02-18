@@ -37,8 +37,9 @@ BarnesHutOctree::BarnesHutOctree() :
         nextFreeNodeID_vec(1),
         nextFreeNodeID(nextFreeNodeID_vec.data(), nextFreeNodeID_vec.size()),
         bodyCountNode_vec(configuration::barnes_hut_algorithm::storageSizeParameter, 0),
-        bodyCountNode(bodyOfNode_vec.data(), bodyOfNode_vec.size())
-        {
+        bodyCountNode(bodyCountNode_vec.data(), bodyCountNode_vec.size()),
+        sortedBodiesInOrder_vec(configuration::numberOfBodies, configuration::numberOfBodies),
+        sortedBodiesInOrder(sortedBodiesInOrder_vec.data(), sortedBodiesInOrder_vec.size()) {
 }
 
 void BarnesHutOctree::computeMinMaxValuesAABB(queue &queue, buffer<double> &current_positions_x,
@@ -390,7 +391,6 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
     }).wait();
 
 
-
 }
 
 
@@ -557,6 +557,71 @@ void BarnesHutOctree::computeCenterOfMass_CPU(queue &queue, buffer<double> &curr
                                }
                            }
                        });
+    }).wait();
+
+}
+
+void BarnesHutOctree::sortBodies(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
+                                 buffer<double> &current_positions_z) {
+
+    std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
+
+    queue.submit([&](handler &h) {
+        accessor<int> NODE_IS_LEAF(nodeIsLeaf, h);
+        accessor<double> MIN_X(min_x_values, h);
+        accessor<double> MIN_Y(min_y_values, h);
+        accessor<double> MIN_Z(min_z_values, h);
+        accessor<std::size_t> OCTANTS(octants, h);
+        accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
+        accessor<double> EDGE_LENGTHS(edgeLengths, h);
+        accessor<double> POS_X(current_positions_x, h);
+        accessor<double> POS_Y(current_positions_y, h);
+        accessor<double> POS_Z(current_positions_z, h);
+        accessor<std::size_t> SORTED_BODIES(sortedBodiesInOrder, h);
+
+
+        h.parallel_for(sycl::range<1>(configuration::numberOfBodies), [=](auto &i) {
+            std::size_t insertionIndex = 0;
+            std::size_t currentNode = 0;
+            bool indexDetermined = false;
+
+            while (!indexDetermined) {
+                if (NODE_IS_LEAF[currentNode]) {
+                    // bottom of the tree is reached, insertion index has been determined
+                    indexDetermined = true;
+                } else {
+                    // step down in the tree and count the amount of bodies that have to be inserted "left" of this body
+                    std::size_t octantID;
+                    double parentMin_x = MIN_X[currentNode];
+                    double parentMin_y = MIN_Y[currentNode];
+                    double parentMin_z = MIN_Z[currentNode];
+                    double parentEdgeLength = EDGE_LENGTHS[currentNode];
+
+                    bool upperPart = POS_Y[i] > parentMin_y + (parentEdgeLength / 2);
+                    bool rightPart = POS_X[i] > parentMin_x + (parentEdgeLength / 2);
+                    bool backPart = POS_Z[i] < parentMin_z + (parentEdgeLength / 2);
+
+                    // interpret as binary and convert into decimal. octantIndex = 0 would correspond to the lowerSW node octantIndex = 7 would be the upperNE node
+                    std::size_t octantIndex = ((int) upperPart) * 4 + ((int) rightPart) * 2 + ((int) backPart) * 1;
+
+                    // find start index of octant type
+                    std::size_t octantAddress = octantIndex * storageSize;
+
+                    // get octant of current Node
+                    octantAddress = octantAddress + currentNode;
+
+                    octantID = OCTANTS[octantAddress];
+
+
+                    for (std::size_t j = 0; j < octantIndex; ++j) {
+                        // all bodies in the octants "left" to the octant of this body will get stored "left" of the current body
+                        insertionIndex += BODY_COUNT_NODE[OCTANTS[j * storageSize + currentNode]];
+                    }
+                    currentNode = octantID;
+                }
+            }
+            SORTED_BODIES[insertionIndex] = i;
+        });
     }).wait();
 
 }

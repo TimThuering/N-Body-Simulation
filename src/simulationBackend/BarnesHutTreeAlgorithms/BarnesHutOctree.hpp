@@ -28,6 +28,7 @@ public:
 
     double AABB_EdgeLength = 0;
 
+
     // data structures for linearized octree:
     /*
      * Storage for all octants of the tree
@@ -89,6 +90,10 @@ public:
     std::vector<std::size_t> bodyCountNode_vec;
     buffer<std::size_t> bodyCountNode;
 
+    // stores the IDs of all bodies sorted according to their position in the octree
+    std::vector<std::size_t> sortedBodiesInOrder_vec;
+    buffer<std::size_t> sortedBodiesInOrder;
+
     /*
      * constructor that initializes all buffers needed for a generic octree. Subclasses of this class might create more buffers.
      */
@@ -126,6 +131,12 @@ public:
      */
     void prepareCenterOfMass(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
                              buffer<double> &current_positions_z, buffer<double> &masses);
+
+    /*
+     * Sorts all bodies according to their position in the octree. This can speed up the acceleration computation on GPUs
+     */
+    void sortBodies(queue &queue,  buffer<double> &current_positions_x, buffer<double> &current_positions_y,
+                    buffer<double> &current_positions_z);
 };
 
 

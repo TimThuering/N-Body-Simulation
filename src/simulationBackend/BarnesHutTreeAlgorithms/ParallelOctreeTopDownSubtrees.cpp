@@ -60,10 +60,20 @@ void ParallelOctreeTopDownSubtrees::buildOctree(queue &queue, buffer<double> &cu
     auto endBuildSubtrees = std::chrono::steady_clock::now();
 
 
-    computeCenterOfMass_GPU(queue, current_positions_x, current_positions_y, current_positions_z, masses);
-//    computeCenterOfMassSubtrees_GPU(queue, current_positions_x, current_positions_y, current_positions_z, masses, bodyCountSubtree, subtrees);
-    auto end = std::chrono::steady_clock::now();
+    if (queue.get_device().is_gpu()) {
+        computeCenterOfMass_GPU(queue, current_positions_x, current_positions_y, current_positions_z, masses);
+    } else {
+        computeCenterOfMass_CPU(queue, current_positions_x, current_positions_y, current_positions_z, masses);
+    }
 
+//    computeCenterOfMassSubtrees_GPU(queue, current_positions_x, current_positions_y, current_positions_z, masses, bodyCountSubtree, subtrees);
+    auto endCenterOfMass = std::chrono::steady_clock::now();
+
+    if (configuration::barnes_hut_algorithm::sortBodies) {
+        sortBodies(queue, current_positions_x, current_positions_y, current_positions_z);
+    }
+
+    auto end = std::chrono::steady_clock::now();
     std::cout << "---------------------------------------------------------- "
               << std::chrono::duration<double, std::milli>(end - begin).count()
               << std::endl;
@@ -74,7 +84,11 @@ void ParallelOctreeTopDownSubtrees::buildOctree(queue &queue, buffer<double> &cu
     timer.addTimeToSequence("Prepare subtrees", std::chrono::duration<double, std::milli>(endPrepareSubtrees - endBuildOctreeToLevel).count());
     timer.addTimeToSequence("Sort bodies for subtrees", std::chrono::duration<double, std::milli>(endSortBodiesForSubtrees - endPrepareSubtrees).count());
     timer.addTimeToSequence("Build subtrees", std::chrono::duration<double, std::milli>(endBuildSubtrees - endSortBodiesForSubtrees).count());
-    timer.addTimeToSequence("Compute center of mass", std::chrono::duration<double, std::milli>(end - endBuildSubtrees).count());
+    timer.addTimeToSequence("Compute center of mass", std::chrono::duration<double, std::milli>(endCenterOfMass - endBuildSubtrees).count());
+
+    if (configuration::barnes_hut_algorithm::sortBodies) {
+        timer.addTimeToSequence("Sort bodies", std::chrono::duration<double, std::milli>(end - endCenterOfMass).count());
+    }
 
 //    host_accessor MASSES(sumOfMasses);
 //    host_accessor CX(massCenters_x);

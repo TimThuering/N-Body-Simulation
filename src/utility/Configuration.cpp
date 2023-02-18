@@ -18,6 +18,7 @@ int configuration::barnes_hut_algorithm::octreeTopWorkItemCount = 640;
 double configuration::barnes_hut_algorithm::theta = 1.05;
 int configuration::barnes_hut_algorithm::maxBuildLevel = 7;
 std::size_t configuration::barnes_hut_algorithm::stackSize = 0;
+bool configuration::barnes_hut_algorithm::sortBodies = true;
 
 void configuration::initializeConfigValues(std::size_t bodyCount, int storageSizeParam, int stackSizeParam) {
     configuration::numberOfBodies = bodyCount;
@@ -52,4 +53,8 @@ void configuration::setMaxBuildLevel(int maxLevel) {
 
 void configuration::setEnergyComputation(bool computeEnergy) {
     configuration::compute_energy = computeEnergy;
+}
+
+void configuration::setSortBodies(bool sort_bodies) {
+    configuration::barnes_hut_algorithm::sortBodies = sort_bodies;
 }

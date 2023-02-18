@@ -64,6 +64,12 @@ namespace configuration {
          * build in the first Phase.
          */
         extern int maxBuildLevel;
+
+        /*
+         * If true, sorting of the bodies according to their position in the tree gets enabled, which can
+         * improve performance of the acceleration computation on GPUs
+         */
+        extern bool sortBodies;
     }
 
 
@@ -87,6 +93,8 @@ namespace configuration {
     void setMaxBuildLevel(int maxLevel);
 
     void setEnergyComputation(bool computeEnergy);
+
+    void setSortBodies(bool sort_bodies);
 
 }
 
