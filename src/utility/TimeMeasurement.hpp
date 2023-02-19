@@ -3,6 +3,7 @@
 
 #include <map>
 #include <vector>
+#include <string>
 
 class TimeMeasurement {
     std::map<std::string, std::vector<double>> times;

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include "Configuration.hpp"
+#include <string>
 
 void TimeMeasurement::addTimingSequence(const std::string &name) {
     std::vector<double> timeSequence;
