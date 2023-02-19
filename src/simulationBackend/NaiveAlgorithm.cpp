@@ -54,7 +54,7 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
     buffer<double> intermediateVelocity_z(intermediateVelocity_z_vec.data(), intermediateVelocity_z_vec.size());
 
     // SYCL queue for computation tasks
-    queue queue{};
+    queue queue;
 
     // vector containing all the masses of the bodies
     std::vector<double> masses_vec = simulationData.mass;
@@ -274,34 +274,41 @@ void NaiveAlgorithm::computeAccelerationsGPU(queue &queue, buffer<double> &masse
         local_accessor<double> LOCAL_POS_X(tileSize, h);
         local_accessor<double> LOCAL_POS_Y(tileSize, h);
         local_accessor<double> LOCAL_POS_Z(tileSize, h);
-
+        
         // device code
         h.parallel_for(nd_range<1>(range<1>(configuration::numberOfBodies + padding), range<1>(tileSize)),
                        [=](auto &nd_item) {
                            int i = nd_item.get_global_id();
-                           if (i < N) { // i>N is not valid since it is part of the padding.
-                               double acc_x = 0;
-                               double acc_y = 0;
-                               double acc_z = 0;
+                           double pos_x;
+                           double pos_y;
+                           double pos_z;
 
-                               double pos_x = POS_X[i];
-                               double pos_y = POS_Y[i];
-                               double pos_z = POS_Z[i];
+                           double acc_x = 0;
+                           double acc_y = 0;
+                           double acc_z = 0;
 
-                               int local_id = nd_item.get_local_id();
+                           if (i < N) { // i > N is not valid since it is part of the padding.
+                               pos_x = POS_X[i];
+                               pos_y = POS_Y[i];
+                               pos_z = POS_Z[i];
+                           }
 
-                               // iterate over all other bodies in blocks of tile size. After each tile, reload the all values from global into local memory.
-                               for (int k = 0; k < N; k += tileSize) {
+                           int local_id = nd_item.get_local_id();
 
-                                   if (local_id + k <
-                                       N) { // if > N, we have already reached the last body and all other values would be part of the padding.
-                                       LOCAL_MASSES[local_id] = MASSES[k + local_id];
-                                       LOCAL_POS_X[local_id] = POS_X[k + local_id];
-                                       LOCAL_POS_Y[local_id] = POS_Y[k + local_id];
-                                       LOCAL_POS_Z[local_id] = POS_Z[k + local_id];
-                                   }
-                                   nd_item.barrier(); // start with computation only when all values are loaded into the local memory.
+                           // iterate over all other bodies in blocks of tile size. After each tile, reload the all values from global into local memory.
+                           for (int k = 0; k < N; k += tileSize) {
 
+                               // if > N, we have already reached the last body and all other values would be part of the padding.
+                               if (local_id + k < N) {
+                                   LOCAL_MASSES[local_id] = MASSES[k + local_id];
+                                   LOCAL_POS_X[local_id] = POS_X[k + local_id];
+                                   LOCAL_POS_Y[local_id] = POS_Y[k + local_id];
+                                   LOCAL_POS_Z[local_id] = POS_Z[k + local_id];
+                               }
+
+                               nd_item.barrier(); // start with computation only when all values are loaded into the local memory.
+
+                               if (i < N) {
                                    for (int j = 0; j < tileSize && j + k < N; ++j) {
                                        double r_x = LOCAL_POS_X[j] - pos_x;
                                        double r_y = LOCAL_POS_Y[j] - pos_y;
@@ -311,8 +318,6 @@ void NaiveAlgorithm::computeAccelerationsGPU(queue &queue, buffer<double> &masse
                                                (r_x * r_x) + (r_y * r_y) + (r_z * r_z) + epsilon_2;
                                        denominator = denominator * denominator * denominator;
                                        denominator = sycl::rsqrt(denominator);
-
-
 
 //                                       double denominator = sycl::sqrt(
 //                                               (r_x * r_x) + (r_y * r_y) + (r_z * r_z) + epsilon_2);
@@ -326,9 +331,11 @@ void NaiveAlgorithm::computeAccelerationsGPU(queue &queue, buffer<double> &masse
                                        acc_y += LOCAL_MASSES[j] * (r_y * denominator);
                                        acc_z += LOCAL_MASSES[j] * (r_z * denominator);
                                    }
-                                   nd_item.barrier(); // continue with loading new values only when all computations of current tile are done
                                }
+                               nd_item.barrier(); // continue with loading new values only when all computations of current tile are done
+                           }
 
+                           if (i < N) {
                                ACC_X[i] = acc_x * G;
                                ACC_Y[i] = acc_y * G;
                                ACC_Z[i] = acc_z * G;
