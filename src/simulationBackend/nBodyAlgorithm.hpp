@@ -58,6 +58,10 @@ public:
 
         // scale G appropriately
         G = G * (std::pow(meter_AU, 3) / std::pow(second_Days, 2));
+
+//        double meter_AU = 1.0 / (3.08567758129 * std::pow(10, 16));
+//        double second_Days = 1.0 / (86400 * 365.25);
+//        G = G * (std::pow(meter_AU, 3) / std::pow(second_Days, 2)) * ( (1.988435 * std::pow(10,30)));
     }
 
     /*

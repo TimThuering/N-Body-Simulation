@@ -17,6 +17,7 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
     // compute the axis aligned bounding box around all bodies
     computeMinMaxValuesAABB(queue, current_positions_x, current_positions_y, current_positions_z);
 
+    auto endAABB_creation = std::chrono::steady_clock::now();
 
     std::vector<std::size_t> maxTreeDepth_vec(1, 0);
     buffer<std::size_t> maxTreeDepths(maxTreeDepth_vec.data(), maxTreeDepth_vec.size());
@@ -53,6 +54,8 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
         accessor<double> CENTER_OF_MASS_Y(massCenters_y, h);
         accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
         accessor<std::size_t> BODY_OF_NODE(bodyOfNode, h);
+        accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
+
 
         double edgeLength = AABB_EdgeLength;
         double minX = min_x;
@@ -81,6 +84,7 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
             NODE_LOCKED[0] = 0;
             NODE_IS_LEAF[0] = 1;
 
+            BODY_COUNT_NODE[0] = 0;
 
             SUM_MASSES[0] = 0;
             CENTER_OF_MASS_X[0] = 0;
@@ -114,6 +118,7 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
         accessor<double> CENTER_OF_MASS_Y(massCenters_y, h);
         accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
         accessor<std::size_t> NEXT_FREE_NODE_ID(nextFreeNodeID, h);
+        accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
 
 
         // determine the maximum body count per work-item
@@ -301,6 +306,8 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
 
                                                     NODE_IS_LEAF[idx] = 1;
 
+                                                    BODY_COUNT_NODE[idx] = 0;
+
                                                     CENTER_OF_MASS_X[idx] = 0;
                                                     CENTER_OF_MASS_Y[idx] = 0;
                                                     CENTER_OF_MASS_Z[idx] = 0;
@@ -444,10 +451,8 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                 });
     }).wait();
 
-    auto end = std::chrono::steady_clock::now();
-    std::cout << "---------------------------------------------------------- "
-              << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
-              << std::endl;
+    auto endBuildOctree = std::chrono::steady_clock::now();
+
 
     if (queue.get_device().is_gpu()) {
         computeCenterOfMass_GPU(queue, current_positions_x, current_positions_y, current_positions_z, masses);
@@ -455,10 +460,24 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
         computeCenterOfMass_CPU(queue, current_positions_x, current_positions_y, current_positions_z, masses);
     }
 
+    auto endCenterOfMass = std::chrono::steady_clock::now();
+
     if (configuration::barnes_hut_algorithm::sortBodies) {
         sortBodies(queue, current_positions_x, current_positions_y, current_positions_z);
     }
 
+    auto end = std::chrono::steady_clock::now();
+    std::cout << "---------------------------------------------------------- "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+              << std::endl;
+
+    timer.addTimeToSequence("AABB creation", std::chrono::duration<double, std::milli>(endAABB_creation - begin).count());
+    timer.addTimeToSequence("Build octree", std::chrono::duration<double, std::milli>(endBuildOctree - endAABB_creation).count());
+    timer.addTimeToSequence("Compute center of mass", std::chrono::duration<double, std::milli>(endCenterOfMass - endBuildOctree).count());
+
+    if (configuration::barnes_hut_algorithm::sortBodies) {
+        timer.addTimeToSequence("Sort bodies", std::chrono::duration<double, std::milli>(end - endCenterOfMass).count());
+    }
 
 //    host_accessor CX(massCenters_x);
 //    host_accessor CY(massCenters_y);

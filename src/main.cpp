@@ -77,6 +77,16 @@ int main(int argc, char *argv[]) {
              "Turns on sorting of the bodies according to their position in the octree",
              cxxopts::value<bool>());
 
+    arguments.add_options()
+            ("use_gpus",
+             "If true, GPUs will be used for the computation. If false CPUs will be used.",
+             cxxopts::value<bool>());
+
+    arguments.add_options()
+            ("gpu_count",
+             "Set the maximum number of GPUs to use for the simulation",
+             cxxopts::value<int>());
+
 
     auto options = arguments.parse(argc, argv);
 
@@ -121,6 +131,14 @@ int main(int argc, char *argv[]) {
         configuration::setEnergyComputation(options["energy"].as<bool>());
     }
 
+    if (options.count("use_gpus") == 1) {
+        configuration::setDeviceGPU(options["use_gpus"].as<bool>());
+    }
+
+    if (options.count("gpu_count") == 1) {
+        configuration::setGPUCount(options["use_gpus"].as<int>());
+    }
+
 
     if (options["algorithm"].as<std::string>() == "naive") {
         // overwrite default values of naive algorithm if specified as program argument
@@ -160,6 +178,8 @@ int main(int argc, char *argv[]) {
             configuration::setSortBodies(options["sort_bodies"].as<bool>());
         }
 
+
+
         std::cout << "Barnes-Hut algorithm configuration:" << std::endl;
         std::cout << "Theta ----------------------------------- " << configuration::barnes_hut_algorithm::theta
                   << std::endl;
@@ -167,10 +187,12 @@ int main(int argc, char *argv[]) {
                   << configuration::barnes_hut_algorithm::AABBWorkItemCount << std::endl;
         std::cout << "Work-items octree creation -------------- "
                   << configuration::barnes_hut_algorithm::octreeWorkItemCount << std::endl;
+#ifndef OCTREE_TOP_DOWN_SYNC
         std::cout << "Work-items top of octree creation ------- "
                   << configuration::barnes_hut_algorithm::octreeTopWorkItemCount << std::endl;
         std::cout << "Maximum build level top of octree ------- " << configuration::barnes_hut_algorithm::maxBuildLevel
                   << std::endl;
+#endif
         std::cout << "Sort Bodies enabled --------------------- " << configuration::barnes_hut_algorithm::sortBodies
                   << std::endl;
         std::cout << std::endl << std::endl;

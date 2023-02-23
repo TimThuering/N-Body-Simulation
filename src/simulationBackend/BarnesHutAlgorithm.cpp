@@ -68,17 +68,23 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
     std::size_t currentStep = 0;
 
     // configure the timer
-    std::string device = "GPU";
+    std::string device = queue.get_device().get_info<info::device::name>();
     timer.setProperties(description, configuration::numberOfBodies, device);
     timer.addTimingSequence("Total Time");
     timer.addTimingSequence("Octree creation");
     timer.addTimingSequence("Acceleration Kernel Time");
     timer.addTimingSequence("AABB creation");
+    timer.addTimingSequence("Compute center of mass");
+
+#ifdef OCTREE_TOP_DOWN_SYNC
+    timer.addTimingSequence("Build octree");
+#else
     timer.addTimingSequence("Build octree to level");
     timer.addTimingSequence("Prepare subtrees");
     timer.addTimingSequence("Sort bodies for subtrees");
     timer.addTimingSequence("Build subtrees");
-    timer.addTimingSequence("Compute center of mass");
+#endif
+
     if (configuration::barnes_hut_algorithm::sortBodies) {
         timer.addTimingSequence("Sort bodies");
     }

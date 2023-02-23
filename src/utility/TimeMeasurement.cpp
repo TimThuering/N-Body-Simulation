@@ -28,10 +28,12 @@ void TimeMeasurement::exportJSON(const std::string &path) {
         jsonFile << "  " << "\"work-items AABB\": " << configuration::barnes_hut_algorithm::AABBWorkItemCount << ",\n";
         jsonFile << "  " << "\"work-items octree\": " << configuration::barnes_hut_algorithm::octreeWorkItemCount
                  << ",\n";
+#ifndef OCTREE_TOP_DOWN_SYNC
         jsonFile << "  " << "\"work-items top octree\": " << configuration::barnes_hut_algorithm::octreeTopWorkItemCount
                  << ",\n";
         jsonFile << "  " << "\"max build-level top octree\": " << configuration::barnes_hut_algorithm::maxBuildLevel
                  << ",\n";
+#endif
         jsonFile << "  " << "\"bodies sorted\": " << configuration::barnes_hut_algorithm::sortBodies
                  << ",\n";
     }

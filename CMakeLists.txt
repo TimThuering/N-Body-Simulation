@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.8)
 set(CMAKE_CXX_STANDARD 17)
 
 option(USE_DPCPP "Use DPC++" ON)
+option(USE_OCTREE_TOP_DOWN_SYNC "Use the top-down synchronized approach without subtrees for the tree creation" OFF)
 
 # DPC++
 if(${USE_DPCPP} )
@@ -10,6 +11,7 @@ if(${USE_DPCPP} )
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl-targets=nvptx64-nvidia-cuda")
 endif()
+
 
 
 project(N_Body_Simulation)
@@ -32,6 +34,9 @@ add_executable(N_Body_Simulation
         src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.hpp
         src/utility/TimeMeasurement.cpp src/utility/TimeMeasurement.hpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.hpp src/utility/Configuration.hpp src/utility/Configuration.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.hpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSubtrees.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSubtrees.hpp src/Definitions.hpp)
 
+if(${USE_OCTREE_TOP_DOWN_SYNC})
+    target_compile_definitions(N_Body_Simulation PUBLIC OCTREE_TOP_DOWN_SYNC)
+endif()
 
 # hipSYCL
 if (NOT ${USE_DPCPP})
@@ -47,6 +52,7 @@ if (NOT ${USE_DPCPP})
             src/utility/TimeConverter.cpp
             src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.hpp
             src/utility/TimeMeasurement.cpp src/utility/TimeMeasurement.hpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.hpp src/utility/Configuration.hpp src/utility/Configuration.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.hpp)
+    target_compile_definitions(N_Body_Simulation PUBLIC USE_OPEN_SYCL)
     target_link_options(N_Body_Simulation PUBLIC -fopenmp)
 endif ()
 
