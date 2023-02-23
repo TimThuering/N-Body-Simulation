@@ -4,11 +4,13 @@
 
 // initialize with default values
 std::size_t configuration::numberOfBodies = 0;
+//double configuration::epsilon2 = std::pow(10, -2);
 double configuration::epsilon2 = std::pow(10, -22);
 bool configuration::compute_energy = false;
+int configuration::gpu_count = 1;
+bool configuration::use_GPUs = true;
 
 int configuration::naive_algorithm::tileSizeNaiveAlg = 64;
-
 
 
 std::size_t configuration::barnes_hut_algorithm::storageSizeParameter = 0;
@@ -57,4 +59,12 @@ void configuration::setEnergyComputation(bool computeEnergy) {
 
 void configuration::setSortBodies(bool sort_bodies) {
     configuration::barnes_hut_algorithm::sortBodies = sort_bodies;
+}
+
+void configuration::setGPUCount(int gpuCount) {
+    configuration::gpu_count = gpuCount;
+}
+
+void configuration::setDeviceGPU(bool useGPU) {
+    configuration::use_GPUs = useGPU;
 }

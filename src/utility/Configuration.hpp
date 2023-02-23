@@ -15,6 +15,12 @@ namespace configuration {
     // compute the energy of the system in each visualized time step.
     extern bool compute_energy;
 
+    // number of GPUs to be used for the simulation
+    extern int gpu_count;
+
+    // If true, GPUs will be used for the computation. If false CPUs will be used.
+    extern bool use_GPUs;
+
     namespace naive_algorithm {
         /*
          * Used by the naive algorithm.
@@ -95,6 +101,10 @@ namespace configuration {
     void setEnergyComputation(bool computeEnergy);
 
     void setSortBodies(bool sort_bodies);
+
+    void setGPUCount(int gpuCount);
+
+    void setDeviceGPU(bool useGPU);
 
 }
 
