@@ -250,20 +250,36 @@ void nBodyAlgorithm::generateParaViewOutput(const SimulationData &simulationData
 }
 
 void nBodyAlgorithm::writeVirialEquilibrium(size_t i, std::ofstream &vtpFile) {
-    vtpFile << virialEquilibrium[i] << '\n';
+    if (configuration::compute_energy) {
+        vtpFile << virialEquilibrium[i] << '\n';
+    } else {
+        vtpFile << 0 << '\n';
+    }
 }
 
 void nBodyAlgorithm::writeTotalEnergy(size_t i, std::ofstream &vtpFile) {
-    vtpFile << totalEnergy[i] << '\n';
+    if (configuration::compute_energy) {
+        vtpFile << totalEnergy[i] << '\n';
+    } else {
+        vtpFile << 0 << '\n';
+    }
 
 }
 
 void nBodyAlgorithm::writePotentialEnergy(size_t i, std::ofstream &vtpFile) {
-    vtpFile << potentialEnergy[i] << '\n';
+    if (configuration::compute_energy) {
+        vtpFile << potentialEnergy[i] << '\n';
+    }else {
+        vtpFile << 0 << '\n';
+    }
 }
 
 void nBodyAlgorithm::writeKineticEnergy(size_t i, std::ofstream &vtpFile) {
-    vtpFile << kineticEnergy[i] << '\n';
+    if (configuration::compute_energy) {
+        vtpFile << kineticEnergy[i] << '\n';
+    }else {
+        vtpFile << 0 << '\n';
+    }
 }
 
 void nBodyAlgorithm::writeConnectivity(size_t i, std::ofstream &vtpFile) {
