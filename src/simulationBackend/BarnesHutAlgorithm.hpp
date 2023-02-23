@@ -7,7 +7,6 @@
 #include "ParallelOctreeTopDownSubtrees.hpp"
 #include "SimulationData.hpp"
 #include "Configuration.hpp"
-#include "Definitions.hpp"
 #include <sycl/sycl.hpp>
 
 using namespace sycl;

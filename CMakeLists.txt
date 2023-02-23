@@ -32,7 +32,7 @@ add_executable(N_Body_Simulation
         src/simulationBackend/nBodyAlgorithm.cpp
         src/utility/TimeConverter.cpp
         src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.cpp src/simulationBackend/BarnesHutAlgorithm.hpp
-        src/utility/TimeMeasurement.cpp src/utility/TimeMeasurement.hpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.hpp src/utility/Configuration.hpp src/utility/Configuration.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.hpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSubtrees.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSubtrees.hpp src/Definitions.hpp)
+        src/utility/TimeMeasurement.cpp src/utility/TimeMeasurement.hpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.hpp src/utility/Configuration.hpp src/utility/Configuration.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.hpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSubtrees.cpp src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSubtrees.hpp)
 
 if(${USE_OCTREE_TOP_DOWN_SYNC})
     target_compile_definitions(N_Body_Simulation PUBLIC OCTREE_TOP_DOWN_SYNC)

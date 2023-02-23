@@ -1,6 +1,5 @@
 #include "ParallelOctreeTopDownSynchronized.hpp"
 #include "Configuration.hpp"
-#include "Definitions.hpp"
 
 ParallelOctreeTopDownSynchronized::ParallelOctreeTopDownSynchronized() :
         BarnesHutOctree(),

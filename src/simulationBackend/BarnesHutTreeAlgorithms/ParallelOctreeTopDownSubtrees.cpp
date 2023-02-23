@@ -1,6 +1,5 @@
 #include "ParallelOctreeTopDownSubtrees.hpp"
 #include "Configuration.hpp"
-#include "Definitions.hpp"
 
 ParallelOctreeTopDownSubtrees::ParallelOctreeTopDownSubtrees() :
         BarnesHutOctree(),
