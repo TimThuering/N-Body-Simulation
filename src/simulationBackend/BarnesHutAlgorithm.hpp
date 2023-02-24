@@ -11,19 +11,16 @@
 
 using namespace sycl;
 #ifdef OCTREE_TOP_DOWN_SYNC
-    typedef ParallelOctreeTopDownSynchronized Octree;
+typedef ParallelOctreeTopDownSynchronized Octree;
 #else
-    typedef ParallelOctreeTopDownSubtrees Octree;
+typedef ParallelOctreeTopDownSubtrees Octree;
 #endif
 
 class BarnesHutAlgorithm : public nBodyAlgorithm {
 public:
 
     // Contains the octree data structure including an operation to build the octree.
-    //ParallelOctreeTopDownSubtrees octree;
-//    ParallelOctreeTopDownSynchronized octree;
-
-   Octree octree;
+    Octree octree;
 
     std::vector<std::size_t> nodesOnStack_vec;
     buffer<std::size_t> nodesOnStack;
@@ -43,7 +40,7 @@ public:
      * The 3 buffers current_position_{x,y,z} contain the current position of all the bodies.
      * The 3 buffers acceleration_{x,y,z} will be used to store the computed accelerations.
      */
-    void computeAccelerations(queue &queue, buffer<double> &masses, buffer<double> &currentPositions_x,
+    void computeAccelerations(std::vector<queue> &queues, buffer<double> &masses, buffer<double> &currentPositions_x,
                               buffer<double> &currentPositions_y, buffer<double> &currentPositions_z,
                               buffer<double> &acceleration_x, buffer<double> &acceleration_y,
                               buffer<double> &acceleration_z);

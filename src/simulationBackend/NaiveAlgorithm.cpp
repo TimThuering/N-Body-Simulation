@@ -62,7 +62,6 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
         for (const device &d: devices) {
             queues.emplace_back(d);
         }
-
     } else {
         queues.emplace_back(cpu_selector());
     }
