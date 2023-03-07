@@ -40,7 +40,7 @@ public:
      * The 3 buffers current_position_{x,y,z} contain the current position of all the bodies.
      * The 3 buffers acceleration_{x,y,z} will be used to store the computed accelerations.
      */
-    void computeAccelerations(std::vector<queue> &queues, buffer<double> &masses, buffer<double> &currentPositions_x,
+    void computeAccelerations(queue &queue, buffer<double> &masses, buffer<double> &currentPositions_x,
                               buffer<double> &currentPositions_y, buffer<double> &currentPositions_z,
                               buffer<double> &acceleration_x, buffer<double> &acceleration_y,
                               buffer<double> &acceleration_z);

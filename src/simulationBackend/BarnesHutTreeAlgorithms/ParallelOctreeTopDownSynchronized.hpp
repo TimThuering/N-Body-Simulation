@@ -16,7 +16,6 @@ public:
     buffer<int> nodeIsLocked;
 
 
-
     /*
      * This function implements the octree creation algorithm which follows a synchronized parallel insertion approach
      * and uses SYCL for parallelization

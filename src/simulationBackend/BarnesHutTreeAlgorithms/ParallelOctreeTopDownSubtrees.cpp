@@ -16,7 +16,8 @@ ParallelOctreeTopDownSubtrees::ParallelOctreeTopDownSubtrees() :
 
 void ParallelOctreeTopDownSubtrees::buildOctree(queue &queue, buffer<double> &current_positions_x,
                                                 buffer<double> &current_positions_y,
-                                                buffer<double> &current_positions_z, buffer<double> &masses, TimeMeasurement &timer) {
+                                                buffer<double> &current_positions_z, buffer<double> &masses,
+                                                TimeMeasurement &timer) {
 
     auto begin = std::chrono::steady_clock::now();
     // compute the axis aligned bounding box around all bodies
@@ -78,15 +79,22 @@ void ParallelOctreeTopDownSubtrees::buildOctree(queue &queue, buffer<double> &cu
               << std::endl;
 
 
-    timer.addTimeToSequence("AABB creation", std::chrono::duration<double, std::milli>(endAABB_creation - begin).count());
-    timer.addTimeToSequence("Build octree to level", std::chrono::duration<double, std::milli>(endBuildOctreeToLevel - endAABB_creation).count());
-    timer.addTimeToSequence("Prepare subtrees", std::chrono::duration<double, std::milli>(endPrepareSubtrees - endBuildOctreeToLevel).count());
-    timer.addTimeToSequence("Sort bodies for subtrees", std::chrono::duration<double, std::milli>(endSortBodiesForSubtrees - endPrepareSubtrees).count());
-    timer.addTimeToSequence("Build subtrees", std::chrono::duration<double, std::milli>(endBuildSubtrees - endSortBodiesForSubtrees).count());
-    timer.addTimeToSequence("Compute center of mass", std::chrono::duration<double, std::milli>(endCenterOfMass - endBuildSubtrees).count());
+    timer.addTimeToSequence("AABB creation",
+                            std::chrono::duration<double, std::milli>(endAABB_creation - begin).count());
+    timer.addTimeToSequence("Build octree to level", std::chrono::duration<double, std::milli>(
+            endBuildOctreeToLevel - endAABB_creation).count());
+    timer.addTimeToSequence("Prepare subtrees", std::chrono::duration<double, std::milli>(
+            endPrepareSubtrees - endBuildOctreeToLevel).count());
+    timer.addTimeToSequence("Sort bodies for subtrees", std::chrono::duration<double, std::milli>(
+            endSortBodiesForSubtrees - endPrepareSubtrees).count());
+    timer.addTimeToSequence("Build subtrees", std::chrono::duration<double, std::milli>(
+            endBuildSubtrees - endSortBodiesForSubtrees).count());
+    timer.addTimeToSequence("Compute center of mass",
+                            std::chrono::duration<double, std::milli>(endCenterOfMass - endBuildSubtrees).count());
 
     if (configuration::barnes_hut_algorithm::sortBodies) {
-        timer.addTimeToSequence("Sort bodies", std::chrono::duration<double, std::milli>(end - endCenterOfMass).count());
+        timer.addTimeToSequence("Sort bodies",
+                                std::chrono::duration<double, std::milli>(end - endCenterOfMass).count());
     }
 
 //    host_accessor MASSES(sumOfMasses);
@@ -202,7 +210,6 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
         accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
 
 
-
         // determine the maximum body count per work-item
         std::size_t bodyCountPerWorkItem;
         if (configuration::numberOfBodies > configuration::barnes_hut_algorithm::octreeWorkItemCount) {
@@ -213,261 +220,265 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
             bodyCountPerWorkItem = 1;
         }
 
-        h.parallel_for(
-                nd_range<1>(range<1>(configuration::barnes_hut_algorithm::octreeWorkItemCount),
-                            range<1>(configuration::barnes_hut_algorithm::octreeWorkItemCount)),
-                [=](auto &nd_item) {
+        h.parallel_for(nd_range<1>(range<1>(configuration::barnes_hut_algorithm::octreeWorkItemCount),
+                                   range<1>(configuration::barnes_hut_algorithm::octreeWorkItemCount)),
+                       [=](auto &nd_item) {
 
-                    atomic_ref<std::size_t, memory_order::acq_rel, memory_scope::device,
-                            access::address_space::global_space> nextFreeNodeIDAccessor(NEXT_FREE_NODE_ID[0]);
+                           atomic_ref<std::size_t, memory_order::acq_rel, memory_scope::device,
+                                   access::address_space::global_space> nextFreeNodeIDAccessor(NEXT_FREE_NODE_ID[0]);
 
 
-                    // for all bodies assigned to this work-item.
-                    for (std::size_t i = nd_item.get_global_id() * bodyCountPerWorkItem;
-                         i <
-                         (std::size_t) (nd_item.get_global_id() * bodyCountPerWorkItem + bodyCountPerWorkItem); ++i) {
-                        // check if body ID actually exists
-                        if (i < N) {
-                            SUBTREE_OF_BODY[i] = 0;
-                            //start inserting at the root node
-                            std::size_t currentDepth = 0;
-                            std::size_t currentNode = 0;
+                           // for all bodies assigned to this work-item.
+                           for (std::size_t i = nd_item.get_global_id() * bodyCountPerWorkItem;
+                                i <
+                                (std::size_t) (nd_item.get_global_id() * bodyCountPerWorkItem +
+                                               bodyCountPerWorkItem); ++i) {
+                               // check if body ID actually exists
+                               if (i < N) {
+                                   SUBTREE_OF_BODY[i] = 0;
+                                   //start inserting at the root node
+                                   std::size_t currentDepth = 0;
+                                   std::size_t currentNode = 0;
 
-                            bool nodeInserted = false;
+                                   bool nodeInserted = false;
 
-                            while (!nodeInserted) {
-                                // We check if the current node is locked by some other thread. If it is not, this thread locks it and
-                                // continues with the insertion process.
-                                int exp = 0;
-                                atomic_ref<int, memory_order::acq_rel, memory_scope::device,
-                                        access::address_space::global_space> atomicNodeIsLockedAccessor(
-                                        NODE_LOCKED[currentNode]);
+                                   while (!nodeInserted) {
+                                       // We check if the current node is locked by some other thread. If it is not, this thread locks it and
+                                       // continues with the insertion process.
+                                       int exp = 0;
+                                       atomic_ref<int, memory_order::acq_rel, memory_scope::device,
+                                               access::address_space::global_space> atomicNodeIsLockedAccessor(
+                                               NODE_LOCKED[currentNode]);
 
-                                atomic_ref<int, memoryOrderReference, memory_scope::device,
-                                        access::address_space::global_space> atomicNodeIsLeafAccessor(
-                                        NODE_IS_LEAF[currentNode]);
+                                       atomic_ref<int, memoryOrderReference, memory_scope::device,
+                                               access::address_space::global_space> atomicNodeIsLeafAccessor(
+                                               NODE_IS_LEAF[currentNode]);
 
-                                if (currentDepth < maxLevel) {
+                                       if (currentDepth < maxLevel) {
 
-                                    if (atomicNodeIsLeafAccessor.load(memoryOrderLoad, memory_scope::device) ==
-                                        1) {
-                                        // the current node is a leaf node, try to lock the node and insert body
+                                           if (atomicNodeIsLeafAccessor.load(memoryOrderLoad, memory_scope::device) ==
+                                               1) {
+                                               // the current node is a leaf node, try to lock the node and insert body
 
-                                        if (atomicNodeIsLockedAccessor.compare_exchange_strong(exp, 1,
-                                                                                               memory_order::acq_rel,
-                                                                                               memory_scope::device)) {
+                                               if (atomicNodeIsLockedAccessor.compare_exchange_strong(exp, 1,
+                                                                                                      memory_order::acq_rel,
+                                                                                                      memory_scope::device)) {
 
-                                            if (atomicNodeIsLeafAccessor.load(memoryOrderLoad,
-                                                                              memory_scope::device) == 1) {
-                                                // node is locked and still a leaf node --> it is safe to continue with insertion
+                                                   if (atomicNodeIsLeafAccessor.load(memoryOrderLoad,
+                                                                                     memory_scope::device) == 1) {
+                                                       // node is locked and still a leaf node --> it is safe to continue with insertion
 
-                                                if (BODY_OF_NODE[currentNode] == N) {
-                                                    // the leaf node is empty --> Insert the current body into the current node and set the flag to continue with next body
+                                                       if (BODY_OF_NODE[currentNode] == N) {
+                                                           // the leaf node is empty --> Insert the current body into the current node and set the flag to continue with next body
 
-                                                    BODY_OF_NODE[currentNode] = i;
+                                                           BODY_OF_NODE[currentNode] = i;
 
-                                                    nodeInserted = true;
+                                                           nodeInserted = true;
 //                                                    sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
-                                                    nd_item.mem_fence(access::fence_space::global_and_local);
-                                                } else {
-                                                    // the leaf node already contains a body --> split the node and insert old body
+                                                           nd_item.mem_fence(access::fence_space::global_and_local);
+                                                       } else {
+                                                           // the leaf node already contains a body --> split the node and insert old body
 
-                                                    std::size_t bodyIDinNode = BODY_OF_NODE[currentNode];
+                                                           std::size_t bodyIDinNode = BODY_OF_NODE[currentNode];
 
-                                                    // determine insertion index for the new child nodes and reserve 8 indices
-                                                    std::size_t incr = 8;
-                                                    std::size_t firstIndex = nextFreeNodeIDAccessor.fetch_add(incr);
-
-
-                                                    double childEdgeLength = EDGE_LENGTHS[currentNode] / 2;
-
-                                                    double parent_min_x = MIN_X[currentNode];
-                                                    double parent_min_y = MIN_Y[currentNode];
-                                                    double parent_min_z = MIN_Z[currentNode];
+                                                           // determine insertion index for the new child nodes and reserve 8 indices
+                                                           std::size_t incr = 8;
+                                                           std::size_t firstIndex = nextFreeNodeIDAccessor.fetch_add(
+                                                                   incr);
 
 
-                                                    // set the edge lengths of the child nodes
-                                                    for (std::size_t idx = firstIndex; idx < firstIndex + 8; ++idx) {
-                                                        EDGE_LENGTHS[idx] = childEdgeLength;
-                                                    }
+                                                           double childEdgeLength = EDGE_LENGTHS[currentNode] / 2;
 
-                                                    // create the 8 new octants
-                                                    OCTANTS[5 * storageSize + currentNode] = firstIndex;
-                                                    OCTANTS[7 * storageSize + currentNode] = firstIndex + 1;
-                                                    OCTANTS[4 * storageSize + currentNode] = firstIndex + 2;
-                                                    OCTANTS[6 * storageSize + currentNode] = firstIndex + 3;
-
-                                                    OCTANTS[1 * storageSize + currentNode] = firstIndex + 4;
-                                                    OCTANTS[3 * storageSize + currentNode] = firstIndex + 5;
-                                                    OCTANTS[0 + currentNode] = firstIndex + 6;
-                                                    OCTANTS[2 * storageSize + currentNode] = firstIndex + 7;
+                                                           double parent_min_x = MIN_X[currentNode];
+                                                           double parent_min_y = MIN_Y[currentNode];
+                                                           double parent_min_z = MIN_Z[currentNode];
 
 
-                                                    // min x,y,z values of the upperNW child node
-                                                    MIN_X[firstIndex] = parent_min_x;
-                                                    MIN_Y[firstIndex] = parent_min_y + childEdgeLength;
-                                                    MIN_Z[firstIndex] = parent_min_z;
+                                                           // set the edge lengths of the child nodes
+                                                           for (std::size_t idx = firstIndex;
+                                                                idx < firstIndex + 8; ++idx) {
+                                                               EDGE_LENGTHS[idx] = childEdgeLength;
+                                                           }
 
-                                                    // min x,y,z values of the upperNE child node
-                                                    MIN_X[firstIndex + 1] = parent_min_x + childEdgeLength;
-                                                    MIN_Y[firstIndex + 1] = parent_min_y + childEdgeLength;
-                                                    MIN_Z[firstIndex + 1] = parent_min_z;
+                                                           // create the 8 new octants
+                                                           OCTANTS[5 * storageSize + currentNode] = firstIndex;
+                                                           OCTANTS[7 * storageSize + currentNode] = firstIndex + 1;
+                                                           OCTANTS[4 * storageSize + currentNode] = firstIndex + 2;
+                                                           OCTANTS[6 * storageSize + currentNode] = firstIndex + 3;
 
-                                                    // min x,y,z values of the upperSW child node
-                                                    MIN_X[firstIndex + 2] = parent_min_x;
-                                                    MIN_Y[firstIndex + 2] = parent_min_y + childEdgeLength;
-                                                    MIN_Z[firstIndex + 2] = parent_min_z + childEdgeLength;
+                                                           OCTANTS[1 * storageSize + currentNode] = firstIndex + 4;
+                                                           OCTANTS[3 * storageSize + currentNode] = firstIndex + 5;
+                                                           OCTANTS[0 + currentNode] = firstIndex + 6;
+                                                           OCTANTS[2 * storageSize + currentNode] = firstIndex + 7;
 
-                                                    // min x,y,z values of the upperSE child node
-                                                    MIN_X[firstIndex + 3] = parent_min_x + childEdgeLength;
-                                                    MIN_Y[firstIndex + 3] = parent_min_y + childEdgeLength;
-                                                    MIN_Z[firstIndex + 3] = parent_min_z + childEdgeLength;
 
-                                                    // min x,y,z values of the lowerNW child node
-                                                    MIN_X[firstIndex + 4] = parent_min_x;
-                                                    MIN_Y[firstIndex + 4] = parent_min_y;
-                                                    MIN_Z[firstIndex + 4] = parent_min_z;
+                                                           // min x,y,z values of the upperNW child node
+                                                           MIN_X[firstIndex] = parent_min_x;
+                                                           MIN_Y[firstIndex] = parent_min_y + childEdgeLength;
+                                                           MIN_Z[firstIndex] = parent_min_z;
 
-                                                    // min x,y,z values of the lowerNE child node
-                                                    MIN_X[firstIndex + 5] = parent_min_x + childEdgeLength;
-                                                    MIN_Y[firstIndex + 5] = parent_min_y;
-                                                    MIN_Z[firstIndex + 5] = parent_min_z;
+                                                           // min x,y,z values of the upperNE child node
+                                                           MIN_X[firstIndex + 1] = parent_min_x + childEdgeLength;
+                                                           MIN_Y[firstIndex + 1] = parent_min_y + childEdgeLength;
+                                                           MIN_Z[firstIndex + 1] = parent_min_z;
 
-                                                    // min x,y,z values of the lowerSW child node
-                                                    MIN_X[firstIndex + 6] = parent_min_x;
-                                                    MIN_Y[firstIndex + 6] = parent_min_y;
-                                                    MIN_Z[firstIndex + 6] = parent_min_z + childEdgeLength;
+                                                           // min x,y,z values of the upperSW child node
+                                                           MIN_X[firstIndex + 2] = parent_min_x;
+                                                           MIN_Y[firstIndex + 2] = parent_min_y + childEdgeLength;
+                                                           MIN_Z[firstIndex + 2] = parent_min_z + childEdgeLength;
 
-                                                    // min x,y,z values of the lowerSE child node
-                                                    MIN_X[firstIndex + 7] = parent_min_x + childEdgeLength;
-                                                    MIN_Y[firstIndex + 7] = parent_min_y;
-                                                    MIN_Z[firstIndex + 7] = parent_min_z + childEdgeLength;
+                                                           // min x,y,z values of the upperSE child node
+                                                           MIN_X[firstIndex + 3] = parent_min_x + childEdgeLength;
+                                                           MIN_Y[firstIndex + 3] = parent_min_y + childEdgeLength;
+                                                           MIN_Z[firstIndex + 3] = parent_min_z + childEdgeLength;
 
-                                                    // initially, the newly created octants will not have any children.
-                                                    // 0 is also the root node index, but since the root will never be a child of any node, it can be used here to identify
-                                                    // leaf nodes.
-                                                    // Furthermore, since these nodes do not contain any bodies yet, the impossible body ID numberOfBodies gets used.
-                                                    for (std::size_t idx = firstIndex; idx < firstIndex + 8; ++idx) {
-                                                        OCTANTS[5 * storageSize + idx] = 0;
-                                                        OCTANTS[7 * storageSize + idx] = 0;
-                                                        OCTANTS[4 * storageSize + idx] = 0;
-                                                        OCTANTS[6 * storageSize + idx] = 0;
-                                                        OCTANTS[1 * storageSize + idx] = 0;
-                                                        OCTANTS[3 * storageSize + idx] = 0;
-                                                        OCTANTS[0 + idx] = 0;
-                                                        OCTANTS[2 * storageSize + idx] = 0;
+                                                           // min x,y,z values of the lowerNW child node
+                                                           MIN_X[firstIndex + 4] = parent_min_x;
+                                                           MIN_Y[firstIndex + 4] = parent_min_y;
+                                                           MIN_Z[firstIndex + 4] = parent_min_z;
 
-                                                        BODY_OF_NODE[idx] = N;
+                                                           // min x,y,z values of the lowerNE child node
+                                                           MIN_X[firstIndex + 5] = parent_min_x + childEdgeLength;
+                                                           MIN_Y[firstIndex + 5] = parent_min_y;
+                                                           MIN_Z[firstIndex + 5] = parent_min_z;
 
-                                                        BODY_COUNT_NODE[idx] = 0;
+                                                           // min x,y,z values of the lowerSW child node
+                                                           MIN_X[firstIndex + 6] = parent_min_x;
+                                                           MIN_Y[firstIndex + 6] = parent_min_y;
+                                                           MIN_Z[firstIndex + 6] = parent_min_z + childEdgeLength;
 
-                                                        NODE_IS_LEAF[idx] = 1;
+                                                           // min x,y,z values of the lowerSE child node
+                                                           MIN_X[firstIndex + 7] = parent_min_x + childEdgeLength;
+                                                           MIN_Y[firstIndex + 7] = parent_min_y;
+                                                           MIN_Z[firstIndex + 7] = parent_min_z + childEdgeLength;
 
-                                                        CENTER_OF_MASS_X[idx] = 0;
-                                                        CENTER_OF_MASS_Y[idx] = 0;
-                                                        CENTER_OF_MASS_Z[idx] = 0;
+                                                           // initially, the newly created octants will not have any children.
+                                                           // 0 is also the root node index, but since the root will never be a child of any node, it can be used here to identify
+                                                           // leaf nodes.
+                                                           // Furthermore, since these nodes do not contain any bodies yet, the impossible body ID numberOfBodies gets used.
+                                                           for (std::size_t idx = firstIndex;
+                                                                idx < firstIndex + 8; ++idx) {
+                                                               OCTANTS[5 * storageSize + idx] = 0;
+                                                               OCTANTS[7 * storageSize + idx] = 0;
+                                                               OCTANTS[4 * storageSize + idx] = 0;
+                                                               OCTANTS[6 * storageSize + idx] = 0;
+                                                               OCTANTS[1 * storageSize + idx] = 0;
+                                                               OCTANTS[3 * storageSize + idx] = 0;
+                                                               OCTANTS[0 + idx] = 0;
+                                                               OCTANTS[2 * storageSize + idx] = 0;
 
-                                                        SUM_MASSES[idx] = 0;
-                                                    }
+                                                               BODY_OF_NODE[idx] = N;
 
-                                                    // determine the new octant for the old body
-                                                    std::size_t octantID;
-                                                    double parentMin_x = MIN_X[currentNode];
-                                                    double parentMin_y = MIN_Y[currentNode];
-                                                    double parentMin_z = MIN_Z[currentNode];
-                                                    double parentEdgeLength = EDGE_LENGTHS[currentNode];
+                                                               BODY_COUNT_NODE[idx] = 0;
 
-                                                    bool upperPart =
-                                                            POS_Y[bodyIDinNode] >
-                                                            parentMin_y + (parentEdgeLength / 2.0);
-                                                    bool rightPart =
-                                                            POS_X[bodyIDinNode] >
-                                                            parentMin_x + (parentEdgeLength / 2.0);
-                                                    bool backPart =
-                                                            POS_Z[bodyIDinNode] <
-                                                            parentMin_z + (parentEdgeLength / 2.0);
+                                                               NODE_IS_LEAF[idx] = 1;
 
-                                                    // interpret as binary and convert into decimal
-                                                    std::size_t octantAddress =
-                                                            ((int) upperPart) * 4 + ((int) rightPart) * 2 +
-                                                            ((int) backPart) * 1;
-                                                    // find start index of octant type
-                                                    octantAddress = octantAddress * storageSize;
+                                                               CENTER_OF_MASS_X[idx] = 0;
+                                                               CENTER_OF_MASS_Y[idx] = 0;
+                                                               CENTER_OF_MASS_Z[idx] = 0;
 
-                                                    // get octant of current Node
-                                                    octantAddress = octantAddress + currentNode;
+                                                               SUM_MASSES[idx] = 0;
+                                                           }
 
-                                                    octantID = OCTANTS[octantAddress];
+                                                           // determine the new octant for the old body
+                                                           std::size_t octantID;
+                                                           double parentMin_x = MIN_X[currentNode];
+                                                           double parentMin_y = MIN_Y[currentNode];
+                                                           double parentMin_z = MIN_Z[currentNode];
+                                                           double parentEdgeLength = EDGE_LENGTHS[currentNode];
 
-                                                    // insert the old body into the new octant it belongs to and remove it from the parent node
-                                                    BODY_OF_NODE[octantID] = bodyIDinNode;
-                                                    BODY_OF_NODE[currentNode] = N;
+                                                           bool upperPart =
+                                                                   POS_Y[bodyIDinNode] >
+                                                                   parentMin_y + (parentEdgeLength / 2.0);
+                                                           bool rightPart =
+                                                                   POS_X[bodyIDinNode] >
+                                                                   parentMin_x + (parentEdgeLength / 2.0);
+                                                           bool backPart =
+                                                                   POS_Z[bodyIDinNode] <
+                                                                   parentMin_z + (parentEdgeLength / 2.0);
 
-                                                    if (currentDepth == (maxLevel - 1)) {
-                                                        // after the split, the new octants will be on the max level.
-                                                        // the body with bodyIDinNode belongs to the subtree where the root is the respective octant
-                                                        BODY_OF_NODE[octantID] = N;
-                                                        SUBTREE_OF_BODY[bodyIDinNode] = octantID;
-                                                    }
+                                                           // interpret as binary and convert into decimal
+                                                           std::size_t octantAddress =
+                                                                   ((int) upperPart) * 4 + ((int) rightPart) * 2 +
+                                                                   ((int) backPart) * 1;
+                                                           // find start index of octant type
+                                                           octantAddress = octantAddress * storageSize;
+
+                                                           // get octant of current Node
+                                                           octantAddress = octantAddress + currentNode;
+
+                                                           octantID = OCTANTS[octantAddress];
+
+                                                           // insert the old body into the new octant it belongs to and remove it from the parent node
+                                                           BODY_OF_NODE[octantID] = bodyIDinNode;
+                                                           BODY_OF_NODE[currentNode] = N;
+
+                                                           if (currentDepth == (maxLevel - 1)) {
+                                                               // after the split, the new octants will be on the max level.
+                                                               // the body with bodyIDinNode belongs to the subtree where the root is the respective octant
+                                                               BODY_OF_NODE[octantID] = N;
+                                                               SUBTREE_OF_BODY[bodyIDinNode] = octantID;
+                                                           }
 
 
 //                                                    sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
-                                                    nd_item.mem_fence(access::fence_space::global_and_local);
-                                                    // mark the current node as a non leaf node
-                                                    atomicNodeIsLeafAccessor.store(0, memoryOrderStore,
-                                                                                   memory_scope::device);
-                                                }
+                                                           nd_item.mem_fence(access::fence_space::global_and_local);
+                                                           // mark the current node as a non leaf node
+                                                           atomicNodeIsLeafAccessor.store(0, memoryOrderStore,
+                                                                                          memory_scope::device);
+                                                       }
 
-                                            }
-                                            // release the lock
-                                            nd_item.mem_fence(access::fence_space::global_and_local);
+                                                   }
+                                                   // release the lock
+                                                   nd_item.mem_fence(access::fence_space::global_and_local);
 //                                            sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
-                                            atomicNodeIsLockedAccessor.fetch_sub(1, memory_order::acq_rel,
-                                                                                 memory_scope::device);
-                                        }
-                                    } else {
-                                        // the current node is not a leaf node, i.e. it has 8 children
-                                        // --> determine the octant, the body has to be inserted and set this octant as current node.
+                                                   atomicNodeIsLockedAccessor.fetch_sub(1, memory_order::acq_rel,
+                                                                                        memory_scope::device);
+                                               }
+                                           } else {
+                                               // the current node is not a leaf node, i.e. it has 8 children
+                                               // --> determine the octant, the body has to be inserted and set this octant as current node.
 
-                                        std::size_t octantID;
-                                        double parentMin_x = MIN_X[currentNode];
-                                        double parentMin_y = MIN_Y[currentNode];
-                                        double parentMin_z = MIN_Z[currentNode];
-                                        double parentEdgeLength = EDGE_LENGTHS[currentNode];
+                                               std::size_t octantID;
+                                               double parentMin_x = MIN_X[currentNode];
+                                               double parentMin_y = MIN_Y[currentNode];
+                                               double parentMin_z = MIN_Z[currentNode];
+                                               double parentEdgeLength = EDGE_LENGTHS[currentNode];
 
-                                        bool upperPart = POS_Y[i] > parentMin_y + (parentEdgeLength / 2.0);
-                                        bool rightPart = POS_X[i] > parentMin_x + (parentEdgeLength / 2.0);
-                                        bool backPart = POS_Z[i] < parentMin_z + (parentEdgeLength / 2.0);
+                                               bool upperPart = POS_Y[i] > parentMin_y + (parentEdgeLength / 2.0);
+                                               bool rightPart = POS_X[i] > parentMin_x + (parentEdgeLength / 2.0);
+                                               bool backPart = POS_Z[i] < parentMin_z + (parentEdgeLength / 2.0);
 
-                                        // interpret as binary and convert into decimal
-                                        std::size_t octantAddress =
-                                                ((int) upperPart) * 4 + ((int) rightPart) * 2 + ((int) backPart) * 1;
+                                               // interpret as binary and convert into decimal
+                                               std::size_t octantAddress =
+                                                       ((int) upperPart) * 4 + ((int) rightPart) * 2 +
+                                                       ((int) backPart) * 1;
 
-                                        // find start index of octant type
-                                        octantAddress = octantAddress * storageSize;
+                                               // find start index of octant type
+                                               octantAddress = octantAddress * storageSize;
 
-                                        // get octant of current Node
-                                        octantAddress = octantAddress + currentNode;
+                                               // get octant of current Node
+                                               octantAddress = octantAddress + currentNode;
 
-                                        octantID = OCTANTS[octantAddress];
+                                               octantID = OCTANTS[octantAddress];
 
 
-                                        currentNode = octantID;
-                                        currentDepth += 1;
-                                    }
+                                               currentNode = octantID;
+                                               currentDepth += 1;
+                                           }
 
-                                } else {
-                                    // The maximum depth is reached. This node now represents a root of a subtree.
-                                    // The node does not get split anymore in this Phase.
-                                    nodeInserted = true;
+                                       } else {
+                                           // The maximum depth is reached. This node now represents a root of a subtree.
+                                           // The node does not get split anymore in this Phase.
+                                           nodeInserted = true;
 
-                                    // The subtree of the current body i, will be this subtree
-                                    SUBTREE_OF_BODY[i] = currentNode;
-                                }
-                            }
-                        }
-                    }
-                });
+                                           // The subtree of the current body i, will be this subtree
+                                           SUBTREE_OF_BODY[i] = currentNode;
+                                       }
+                                   }
+                               }
+                           }
+                       });
     }).wait();
 
 }
@@ -593,14 +604,11 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
                                                   buffer<std::size_t> &subtrees) {
 
 
-
-    // storage for the maxTreeDepth which will be atomically accessed
-    std::vector<std::size_t> maxTreeDepth_vec(1, 0);
-    buffer<std::size_t> maxTreeDepths(maxTreeDepth_vec.data(), maxTreeDepth_vec.size());
-
     std::size_t N = configuration::numberOfBodies;
     std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
 
+    std::size_t maxLevel = configuration::barnes_hut_algorithm::maxBuildLevel;
+    std::size_t localSize = configuration::barnes_hut_algorithm::octreeWorkItemCount;
 
     // set memory order for load and store operations depending on the SYCL implementation to allow compatibility with DPC++ and OpenSYCL
 #ifdef USE_OPEN_SYCL
@@ -613,302 +621,263 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
     const sycl::memory_order memoryOrderStore = sycl::memory_order::release;
 #endif
 
+        // build subtrees in parallel
+        queue.submit([&](handler &h) {
+            accessor<int> NODE_LOCKED(nodeIsLocked, h);
+            accessor<int> NODE_IS_LEAF(nodeIsLeaf, h);
+            accessor<double> POS_X(current_positions_x, h);
+            accessor<double> POS_Y(current_positions_y, h);
+            accessor<double> POS_Z(current_positions_z, h);
+            accessor<std::size_t> OCTANTS(octants, h);
+            accessor<double> EDGE_LENGTHS(edgeLengths, h);
+            accessor<double> MIN_X(min_x_values, h);
+            accessor<double> MIN_Y(min_y_values, h);
+            accessor<double> MIN_Z(min_z_values, h);
+            accessor<std::size_t> BODY_OF_NODE(bodyOfNode, h);
+            accessor<double> SUM_MASSES(sumOfMasses, h);
+            accessor<double> CENTER_OF_MASS_X(massCenters_x, h);
+            accessor<double> CENTER_OF_MASS_Y(massCenters_y, h);
+            accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
+            accessor<std::size_t> NEXT_FREE_NODE_ID(nextFreeNodeID, h);
+            accessor<std::size_t> START_INDEX(bodiesOfSubtreeStartIndex, h);
+            accessor<std::size_t> BODY_COUNT_SUBTREE(bodyCountSubtree, h);
+            accessor<std::size_t> SORTED_BODIES(sortedBodies, h);
+            accessor<std::size_t> SUBTREES(subtrees, h);
+            accessor<std::size_t> SUBTREE_OF_NODE(subtreeOfNode, h);
+            accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
 
-    // build octree in parallel
-    queue.submit([&](handler &h) {
+            auto kernelRange = nd_range<1>(range<1>(numberOfSubtrees * localSize), range<1>(localSize));
 
+            h.parallel_for(kernelRange, [=](auto &nd_item) {
 
-        accessor<int> NODE_LOCKED(nodeIsLocked, h);
-        accessor<int> NODE_IS_LEAF(nodeIsLeaf, h);
-        accessor<double> POS_X(current_positions_x, h);
-        accessor<double> POS_Y(current_positions_y, h);
-        accessor<double> POS_Z(current_positions_z, h);
-        accessor<std::size_t> OCTANTS(octants, h);
-        accessor<double> EDGE_LENGTHS(edgeLengths, h);
-        accessor<double> MIN_X(min_x_values, h);
-        accessor<double> MIN_Y(min_y_values, h);
-        accessor<double> MIN_Z(min_z_values, h);
-        accessor<std::size_t> BODY_OF_NODE(bodyOfNode, h);
-        accessor<double> SUM_MASSES(sumOfMasses, h);
-        accessor<double> CENTER_OF_MASS_X(massCenters_x, h);
-        accessor<double> CENTER_OF_MASS_Y(massCenters_y, h);
-        accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
-        accessor<std::size_t> NEXT_FREE_NODE_ID(nextFreeNodeID, h);
-        accessor<std::size_t> START_INDEX(bodiesOfSubtreeStartIndex, h);
-        accessor<std::size_t> BODY_COUNT_SUBTREE(bodyCountSubtree, h);
-        accessor<std::size_t> SORTED_BODIES(sortedBodies, h);
-        accessor<std::size_t> SUBTREES(subtrees, h);
-        accessor<std::size_t> SUBTREE_OF_NODE(subtreeOfNode, h);
-        accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
+                atomic_ref<std::size_t, memory_order::acq_rel, memory_scope::device, access::address_space::global_space> nextFreeNodeIDAccessor(
+                        NEXT_FREE_NODE_ID[0]);
 
+                std::size_t workGroupID = nd_item.get_group_linear_id();
+                std::size_t subTreeRootNode = SUBTREES[workGroupID];
+                std::size_t bodyCountWorkGroup = BODY_COUNT_SUBTREE[subTreeRootNode];
+                std::size_t startIndexBodies = START_INDEX[workGroupID];
 
-        std::size_t maxLevel = configuration::barnes_hut_algorithm::maxBuildLevel;
-        std::size_t localSize = configuration::barnes_hut_algorithm::octreeWorkItemCount;
+                // determine the body count for each work item
+                std::size_t bodyCountPerWorkItem;
+                if (bodyCountWorkGroup > localSize) {
+                    bodyCountPerWorkItem = sycl::ceil((double) bodyCountWorkGroup / (double) localSize);
+                } else {
+                    bodyCountPerWorkItem = 1;
+                    if (nd_item.get_local_id() > bodyCountWorkGroup) {
+                        return;
+                    }
+                }
 
-        h.parallel_for(nd_range<1>(range<1>(numberOfSubtrees * localSize),
-                                   range<1>(localSize)),
-                       [=](auto &nd_item) {
+                // for all bodies assigned to this work-item.
+                for (std::size_t index = startIndexBodies + nd_item.get_local_id() * bodyCountPerWorkItem;
+                     index < (std::size_t) (startIndexBodies + nd_item.get_local_id() * bodyCountPerWorkItem +
+                                            bodyCountPerWorkItem); ++index) {
 
-                           atomic_ref<std::size_t, memory_order::acq_rel, memory_scope::device,
-                                   access::address_space::global_space> nextFreeNodeIDAccessor(NEXT_FREE_NODE_ID[0]);
+                    // check if body ID is actually part of the body IDs of this work group
+                    if (index < (startIndexBodies + bodyCountWorkGroup)) {
+                        // the id of the current body
+                        std::size_t i = SORTED_BODIES[index];
 
-                           std::size_t workGroupID = nd_item.get_group_linear_id();
-                           std::size_t subTreeRootNode = SUBTREES[workGroupID];
-                           std::size_t bodyCountWorkGroup = BODY_COUNT_SUBTREE[subTreeRootNode];
-                           std::size_t startIndexBodies = START_INDEX[workGroupID];
+                        //start inserting at the subtree root node
+                        std::size_t currentDepth = maxLevel;
+                        std::size_t currentNode = subTreeRootNode;
 
-                           std::size_t bodyCountPerWorkItem;
-                           if (bodyCountWorkGroup > localSize) {
-                               bodyCountPerWorkItem = sycl::ceil((double) bodyCountWorkGroup / (double) localSize);
-                           } else {
-                               bodyCountPerWorkItem = 1;
-                               if (nd_item.get_local_id() > bodyCountWorkGroup) {
-                                   return;
-                               }
-                           }
+                        bool bodyInserted = false;
 
+                        while (!bodyInserted) {
+                            int exp = 0; // expected value for compare_exchange
+                            atomic_ref<int, memory_order::acq_rel, memory_scope::device, access::address_space::global_space> atomicNodeIsLockedAccessor(
+                                    NODE_LOCKED[currentNode]);
 
-                           // for all bodies assigned to this work-item.
-                           for (std::size_t index = startIndexBodies + nd_item.get_local_id() * bodyCountPerWorkItem;
-                                index <
-                                (std::size_t) (startIndexBodies + nd_item.get_local_id() * bodyCountPerWorkItem +
-                                               bodyCountPerWorkItem); ++index) {
+                            atomic_ref<int, memoryOrderReference, memory_scope::device, access::address_space::global_space> atomicNodeIsLeafAccessor(
+                                    NODE_IS_LEAF[currentNode]);
 
-                               // check if body ID is actually part of the body IDs of this work group
-                               if (index < (startIndexBodies + bodyCountWorkGroup)) {
-                                   // the id of the current body
-                                   std::size_t i = SORTED_BODIES[index];
+                            if (atomicNodeIsLeafAccessor.load(memoryOrderLoad, memory_scope::device) == 1) {
+                                // the current node is a leaf node, try to lock the node and insert body
 
-                                   //start inserting at the subtree root node
-                                   std::size_t currentDepth = maxLevel;
-                                   std::size_t currentNode = subTreeRootNode;
+                                // It is checked if the current node is locked by some other thread. If it is not, this thread locks it and
+                                // continues with the insertion process.
+                                if (atomicNodeIsLockedAccessor.compare_exchange_strong(exp, 1, memory_order::acq_rel,
+                                                                                       memory_scope::device)) {
 
-                                   bool nodeInserted = false;
+                                    if (atomicNodeIsLeafAccessor.load(memoryOrderLoad, memory_scope::device) == 1) {
+                                        // node is locked and still a leaf node --> it is safe to continue with insertion
 
+                                        if (BODY_OF_NODE[currentNode] == N) {
+                                            // the leaf node is empty --> Insert the current body into the current node and set the flag to continue with next body
+                                            BODY_OF_NODE[currentNode] = i;
 
-                                   while (!nodeInserted) {
-                                       // We check if the current node is locked by some other thread. If it is not, this thread locks it and
-                                       // continues with the insertion process.
-                                       int exp = 0;
-                                       atomic_ref<int, memory_order::acq_rel, memory_scope::device,
-                                               access::address_space::global_space> atomicNodeIsLockedAccessor(
-                                               NODE_LOCKED[currentNode]);
+                                            bodyInserted = true;
+                                            nd_item.mem_fence(access::fence_space::global_and_local);
+                                        } else {
+                                            // the leaf node already contains a body --> split the node and insert old body
 
-                                       atomic_ref<int, memoryOrderReference, memory_scope::device,
-                                               access::address_space::global_space> atomicNodeIsLeafAccessor(
-                                               NODE_IS_LEAF[currentNode]);
+                                            std::size_t bodyIDinNode = BODY_OF_NODE[currentNode];
 
-                                       if (atomicNodeIsLeafAccessor.load(memoryOrderLoad,
-                                                                         memory_scope::device) ==
-                                           1) {
-                                           // the current node is a leaf node, try to lock the node and insert body
+                                            // determine insertion index for the new child nodes and reserve 8 indices
+                                            std::size_t incr = 8;
+                                            std::size_t firstIndex = nextFreeNodeIDAccessor.fetch_add(incr);
 
-                                           if (atomicNodeIsLockedAccessor.compare_exchange_strong(exp, 1,
-                                                                                                  memory_order::acq_rel,
-                                                                                                  memory_scope::device)) {
+                                            double childEdgeLength = EDGE_LENGTHS[currentNode] / 2;
+                                            double parent_min_x = MIN_X[currentNode];
+                                            double parent_min_y = MIN_Y[currentNode];
+                                            double parent_min_z = MIN_Z[currentNode];
 
-                                               if (atomicNodeIsLeafAccessor.load(memoryOrderLoad,
-                                                                                 memory_scope::device) == 1) {
-                                                   // node is locked and still a leaf node --> it is safe to continue with insertion
+                                            // set the edge lengths of the child nodes
+                                            for (std::size_t idx = firstIndex;
+                                                 idx < firstIndex + 8; ++idx) {
+                                                EDGE_LENGTHS[idx] = childEdgeLength;
+                                            }
 
-                                                   if (BODY_OF_NODE[currentNode] == N) {
-                                                       // the leaf node is empty --> Insert the current body into the current node and set the flag to continue with next body
+                                            // create the 8 new octants
+                                            OCTANTS[5 * storageSize + currentNode] = firstIndex;
+                                            OCTANTS[7 * storageSize + currentNode] = firstIndex + 1;
+                                            OCTANTS[4 * storageSize + currentNode] = firstIndex + 2;
+                                            OCTANTS[6 * storageSize + currentNode] = firstIndex + 3;
+                                            OCTANTS[1 * storageSize + currentNode] = firstIndex + 4;
+                                            OCTANTS[3 * storageSize + currentNode] = firstIndex + 5;
+                                            OCTANTS[0 + currentNode] = firstIndex + 6;
+                                            OCTANTS[2 * storageSize + currentNode] = firstIndex + 7;
 
-                                                       BODY_OF_NODE[currentNode] = i;
+                                            // min x,y,z values of the upperNW child node
+                                            MIN_X[firstIndex] = parent_min_x;
+                                            MIN_Y[firstIndex] = parent_min_y + childEdgeLength;
+                                            MIN_Z[firstIndex] = parent_min_z;
 
-//                                                       max_tree_depth.fetch_max(currentDepth);
-                                                       nodeInserted = true;
-                                                       //sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
-                                                       nd_item.mem_fence(access::fence_space::global_and_local);
-                                                   } else {
-                                                       // the leaf node already contains a body --> split the node and insert old body
+                                            // min x,y,z values of the upperNE child node
+                                            MIN_X[firstIndex + 1] = parent_min_x + childEdgeLength;
+                                            MIN_Y[firstIndex + 1] = parent_min_y + childEdgeLength;
+                                            MIN_Z[firstIndex + 1] = parent_min_z;
 
-                                                       std::size_t bodyIDinNode = BODY_OF_NODE[currentNode];
+                                            // min x,y,z values of the upperSW child node
+                                            MIN_X[firstIndex + 2] = parent_min_x;
+                                            MIN_Y[firstIndex + 2] = parent_min_y + childEdgeLength;
+                                            MIN_Z[firstIndex + 2] = parent_min_z + childEdgeLength;
 
-                                                       // determine insertion index for the new child nodes and reserve 8 indices
-                                                       std::size_t incr = 8;
-                                                       std::size_t firstIndex = nextFreeNodeIDAccessor.fetch_add(
-                                                               incr);
+                                            // min x,y,z values of the upperSE child node
+                                            MIN_X[firstIndex + 3] = parent_min_x + childEdgeLength;
+                                            MIN_Y[firstIndex + 3] = parent_min_y + childEdgeLength;
+                                            MIN_Z[firstIndex + 3] = parent_min_z + childEdgeLength;
 
+                                            // min x,y,z values of the lowerNW child node
+                                            MIN_X[firstIndex + 4] = parent_min_x;
+                                            MIN_Y[firstIndex + 4] = parent_min_y;
+                                            MIN_Z[firstIndex + 4] = parent_min_z;
 
-                                                       double childEdgeLength = EDGE_LENGTHS[currentNode] / 2;
+                                            // min x,y,z values of the lowerNE child node
+                                            MIN_X[firstIndex + 5] = parent_min_x + childEdgeLength;
+                                            MIN_Y[firstIndex + 5] = parent_min_y;
+                                            MIN_Z[firstIndex + 5] = parent_min_z;
 
-                                                       double parent_min_x = MIN_X[currentNode];
-                                                       double parent_min_y = MIN_Y[currentNode];
-                                                       double parent_min_z = MIN_Z[currentNode];
+                                            // min x,y,z values of the lowerSW child node
+                                            MIN_X[firstIndex + 6] = parent_min_x;
+                                            MIN_Y[firstIndex + 6] = parent_min_y;
+                                            MIN_Z[firstIndex + 6] = parent_min_z + childEdgeLength;
 
+                                            // min x,y,z values of the lowerSE child node
+                                            MIN_X[firstIndex + 7] = parent_min_x + childEdgeLength;
+                                            MIN_Y[firstIndex + 7] = parent_min_y;
+                                            MIN_Z[firstIndex + 7] = parent_min_z + childEdgeLength;
 
-                                                       // set the edge lengths of the child nodes
-                                                       for (std::size_t idx = firstIndex;
-                                                            idx < firstIndex + 8; ++idx) {
-                                                           EDGE_LENGTHS[idx] = childEdgeLength;
-                                                       }
+                                            // initially, the newly created octants will not have any children.
+                                            // 0 is also the root node index, but since the root will never be a child of any node, it can be used here to identify
+                                            // leaf nodes.
+                                            // Furthermore, since these nodes do not contain any bodies yet, the impossible body ID numberOfBodies gets used.
+                                            for (std::size_t idx = firstIndex;
+                                                 idx < firstIndex + 8; ++idx) {
+                                                OCTANTS[5 * storageSize + idx] = 0;
+                                                OCTANTS[7 * storageSize + idx] = 0;
+                                                OCTANTS[4 * storageSize + idx] = 0;
+                                                OCTANTS[6 * storageSize + idx] = 0;
+                                                OCTANTS[1 * storageSize + idx] = 0;
+                                                OCTANTS[3 * storageSize + idx] = 0;
+                                                OCTANTS[0 + idx] = 0;
+                                                OCTANTS[2 * storageSize + idx] = 0;
+                                                BODY_OF_NODE[idx] = N;
+                                                BODY_COUNT_NODE[idx] = 0;
+                                                SUBTREE_OF_NODE[idx] = subTreeRootNode;
+                                                NODE_IS_LEAF[idx] = 1;
+                                                CENTER_OF_MASS_X[idx] = 0;
+                                                CENTER_OF_MASS_Y[idx] = 0;
+                                                CENTER_OF_MASS_Z[idx] = 0;
+                                                SUM_MASSES[idx] = 0;
+                                            }
 
-                                                       // create the 8 new octants
-                                                       OCTANTS[5 * storageSize + currentNode] = firstIndex;
-                                                       OCTANTS[7 * storageSize + currentNode] = firstIndex + 1;
-                                                       OCTANTS[4 * storageSize + currentNode] = firstIndex + 2;
-                                                       OCTANTS[6 * storageSize + currentNode] = firstIndex + 3;
+                                            // determine the new octant for the old body
+                                            std::size_t octantID;
+                                            double parentMin_x = MIN_X[currentNode];
+                                            double parentMin_y = MIN_Y[currentNode];
+                                            double parentMin_z = MIN_Z[currentNode];
+                                            double parentEdgeLength = EDGE_LENGTHS[currentNode];
 
-                                                       OCTANTS[1 * storageSize + currentNode] = firstIndex + 4;
-                                                       OCTANTS[3 * storageSize + currentNode] = firstIndex + 5;
-                                                       OCTANTS[0 + currentNode] = firstIndex + 6;
-                                                       OCTANTS[2 * storageSize + currentNode] = firstIndex + 7;
+                                            bool upperPart = POS_Y[bodyIDinNode] > parentMin_y + (parentEdgeLength / 2);
+                                            bool rightPart = POS_X[bodyIDinNode] > parentMin_x + (parentEdgeLength / 2);
+                                            bool backPart = POS_Z[bodyIDinNode] < parentMin_z + (parentEdgeLength / 2);
 
+                                            // interpret as binary and convert into decimal
+                                            std::size_t octantAddress = ((int) upperPart) * 4 + ((int) rightPart) * 2 +
+                                                                        ((int) backPart) * 1;
 
-                                                       // min x,y,z values of the upperNW child node
-                                                       MIN_X[firstIndex] = parent_min_x;
-                                                       MIN_Y[firstIndex] = parent_min_y + childEdgeLength;
-                                                       MIN_Z[firstIndex] = parent_min_z;
+                                            // find start index of octant type
+                                            octantAddress = octantAddress * storageSize;
 
-                                                       // min x,y,z values of the upperNE child node
-                                                       MIN_X[firstIndex + 1] = parent_min_x + childEdgeLength;
-                                                       MIN_Y[firstIndex + 1] = parent_min_y + childEdgeLength;
-                                                       MIN_Z[firstIndex + 1] = parent_min_z;
+                                            // get octant of current Node
+                                            octantAddress = octantAddress + currentNode;
 
-                                                       // min x,y,z values of the upperSW child node
-                                                       MIN_X[firstIndex + 2] = parent_min_x;
-                                                       MIN_Y[firstIndex + 2] = parent_min_y + childEdgeLength;
-                                                       MIN_Z[firstIndex + 2] = parent_min_z + childEdgeLength;
+                                            octantID = OCTANTS[octantAddress];
 
-                                                       // min x,y,z values of the upperSE child node
-                                                       MIN_X[firstIndex + 3] = parent_min_x + childEdgeLength;
-                                                       MIN_Y[firstIndex + 3] = parent_min_y + childEdgeLength;
-                                                       MIN_Z[firstIndex + 3] = parent_min_z + childEdgeLength;
+                                            // insert the old body into the new octant it belongs to and remove it from the parent node
+                                            BODY_OF_NODE[octantID] = bodyIDinNode;
+                                            BODY_OF_NODE[currentNode] = N;
 
-                                                       // min x,y,z values of the lowerNW child node
-                                                       MIN_X[firstIndex + 4] = parent_min_x;
-                                                       MIN_Y[firstIndex + 4] = parent_min_y;
-                                                       MIN_Z[firstIndex + 4] = parent_min_z;
+                                            nd_item.mem_fence(access::fence_space::global_and_local);
+                                            // mark the current node as a non leaf node
+                                            atomicNodeIsLeafAccessor.store(0, memoryOrderStore, memory_scope::device);
+                                        }
+                                    }
+                                    // release the lock
+                                    nd_item.mem_fence(access::fence_space::global_and_local);
+                                    atomicNodeIsLockedAccessor.fetch_sub(1, memory_order::acq_rel,
+                                                                         memory_scope::device);
+                                }
+                            } else {
+                                // the current node is not a leaf node, i.e. it has 8 children
+                                // --> determine the octant, the body has to be inserted and set this octant as current node.
 
-                                                       // min x,y,z values of the lowerNE child node
-                                                       MIN_X[firstIndex + 5] = parent_min_x + childEdgeLength;
-                                                       MIN_Y[firstIndex + 5] = parent_min_y;
-                                                       MIN_Z[firstIndex + 5] = parent_min_z;
+                                std::size_t octantID;
+                                double parentMin_x = MIN_X[currentNode];
+                                double parentMin_y = MIN_Y[currentNode];
+                                double parentMin_z = MIN_Z[currentNode];
+                                double parentEdgeLength = EDGE_LENGTHS[currentNode];
 
-                                                       // min x,y,z values of the lowerSW child node
-                                                       MIN_X[firstIndex + 6] = parent_min_x;
-                                                       MIN_Y[firstIndex + 6] = parent_min_y;
-                                                       MIN_Z[firstIndex + 6] = parent_min_z + childEdgeLength;
+                                bool upperPart = POS_Y[i] > parentMin_y + (parentEdgeLength / 2);
+                                bool rightPart = POS_X[i] > parentMin_x + (parentEdgeLength / 2);
+                                bool backPart = POS_Z[i] < parentMin_z + (parentEdgeLength / 2);
 
-                                                       // min x,y,z values of the lowerSE child node
-                                                       MIN_X[firstIndex + 7] = parent_min_x + childEdgeLength;
-                                                       MIN_Y[firstIndex + 7] = parent_min_y;
-                                                       MIN_Z[firstIndex + 7] = parent_min_z + childEdgeLength;
+                                // interpret as binary and convert into decimal
+                                std::size_t octantAddress =
+                                        ((int) upperPart) * 4 + ((int) rightPart) * 2 + ((int) backPart) * 1;
 
-                                                       // initially, the newly created octants will not have any children.
-                                                       // 0 is also the root node index, but since the root will never be a child of any node, it can be used here to identify
-                                                       // leaf nodes.
-                                                       // Furthermore, since these nodes do not contain any bodies yet, the impossible body ID numberOfBodies gets used.
-                                                       for (std::size_t idx = firstIndex;
-                                                            idx < firstIndex + 8; ++idx) {
-                                                           OCTANTS[5 * storageSize + idx] = 0;
-                                                           OCTANTS[7 * storageSize + idx] = 0;
-                                                           OCTANTS[4 * storageSize + idx] = 0;
-                                                           OCTANTS[6 * storageSize + idx] = 0;
-                                                           OCTANTS[1 * storageSize + idx] = 0;
-                                                           OCTANTS[3 * storageSize + idx] = 0;
-                                                           OCTANTS[0 + idx] = 0;
-                                                           OCTANTS[2 * storageSize + idx] = 0;
+                                // find start index of octant type
+                                octantAddress = octantAddress * storageSize;
 
+                                // get octant of current Node
+                                octantAddress = octantAddress + currentNode;
 
-                                                           BODY_OF_NODE[idx] = N;
-                                                           BODY_COUNT_NODE[idx] = 0;
-                                                           SUBTREE_OF_NODE[idx] = subTreeRootNode;
+                                octantID = OCTANTS[octantAddress];
 
-                                                           NODE_IS_LEAF[idx] = 1;
-
-                                                           CENTER_OF_MASS_X[idx] = 0;
-                                                           CENTER_OF_MASS_Y[idx] = 0;
-                                                           CENTER_OF_MASS_Z[idx] = 0;
-
-                                                           SUM_MASSES[idx] = 0;
-                                                       }
-
-                                                       // determine the new octant for the old body
-                                                       std::size_t octantID;
-                                                       double parentMin_x = MIN_X[currentNode];
-                                                       double parentMin_y = MIN_Y[currentNode];
-                                                       double parentMin_z = MIN_Z[currentNode];
-                                                       double parentEdgeLength = EDGE_LENGTHS[currentNode];
-
-                                                       bool upperPart =
-                                                               POS_Y[bodyIDinNode] >
-                                                               parentMin_y + (parentEdgeLength / 2);
-                                                       bool rightPart =
-                                                               POS_X[bodyIDinNode] >
-                                                               parentMin_x + (parentEdgeLength / 2);
-                                                       bool backPart =
-                                                               POS_Z[bodyIDinNode] <
-                                                               parentMin_z + (parentEdgeLength / 2);
-
-                                                       // interpret as binary and convert into decimal
-                                                       std::size_t octantAddress =
-                                                               ((int) upperPart) * 4 + ((int) rightPart) * 2 +
-                                                               ((int) backPart) * 1;
-                                                       // find start index of octant type
-                                                       octantAddress = octantAddress * storageSize;
-
-                                                       // get octant of current Node
-                                                       octantAddress = octantAddress + currentNode;
-
-                                                       octantID = OCTANTS[octantAddress];
-
-                                                       // insert the old body into the new octant it belongs to and remove it from the parent node
-                                                       BODY_OF_NODE[octantID] = bodyIDinNode;
-                                                       BODY_OF_NODE[currentNode] = N;
-
-
-                                                       //sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
-                                                       nd_item.mem_fence(access::fence_space::global_and_local);
-                                                       // mark the current node as a non leaf node
-                                                       atomicNodeIsLeafAccessor.store(0, memoryOrderStore,
-                                                                                      memory_scope::device);
-                                                   }
-                                                   // sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
-                                               }
-                                               // release the lock
-                                               nd_item.mem_fence(access::fence_space::global_and_local);
-                                               atomicNodeIsLockedAccessor.fetch_sub(1, memory_order::acq_rel,
-                                                                                    memory_scope::device);
-                                           }
-                                       } else {
-                                           // the current node is not a leaf node, i.e. it has 8 children
-                                           // --> determine the octant, the body has to be inserted and set this octant as current node.
-
-                                           std::size_t octantID;
-                                           double parentMin_x = MIN_X[currentNode];
-                                           double parentMin_y = MIN_Y[currentNode];
-                                           double parentMin_z = MIN_Z[currentNode];
-                                           double parentEdgeLength = EDGE_LENGTHS[currentNode];
-
-                                           bool upperPart = POS_Y[i] > parentMin_y + (parentEdgeLength / 2);
-                                           bool rightPart = POS_X[i] > parentMin_x + (parentEdgeLength / 2);
-                                           bool backPart = POS_Z[i] < parentMin_z + (parentEdgeLength / 2);
-
-                                           // interpret as binary and convert into decimal
-                                           std::size_t octantAddress =
-                                                   ((int) upperPart) * 4 + ((int) rightPart) * 2 +
-                                                   ((int) backPart) * 1;
-
-                                           // find start index of octant type
-                                           octantAddress = octantAddress * storageSize;
-
-                                           // get octant of current Node
-                                           octantAddress = octantAddress + currentNode;
-
-                                           octantID = OCTANTS[octantAddress];
-
-                                           currentNode = octantID;
-                                           currentDepth += 1;
-                                       }
+                                currentNode = octantID;
+                                currentDepth += 1;
+                            }
 //                                           nd_item.barrier();
-                                   }
-//                                   }
-                               }
-                           }
-                       });
-    }).wait();
+                        }
+                    }
+                }
+            });
+        }).wait();
+
+
 }
 
 void ParallelOctreeTopDownSubtrees::computeCenterOfMassSubtrees_GPU(queue &queue, buffer<double> &current_positions_x,

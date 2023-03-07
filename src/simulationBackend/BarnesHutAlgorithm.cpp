@@ -56,21 +56,14 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
     buffer<double> intermediateVelocity_z(intermediateVelocity_z_vec.data(), intermediateVelocity_z_vec.size());
 
     // SYCL queue for computation tasks
-
-
-    std::vector<sycl::queue> queues;
-
+    queue queue;
 
     if (configuration::use_GPUs) {
-        std::vector<sycl::device> devices = sycl::device::get_devices(info::device_type::gpu);
-        for (const device &d: devices) {
-            queues.emplace_back(d);
-        }
-    } else {
-        queues.emplace_back(cpu_selector());
-    }
+        queue = sycl::queue(sycl::gpu_selector_v);
 
-    queue queue = queues.at(0);
+    } else {
+        queue = sycl::queue(sycl::cpu_selector_v);
+    }
 
     // vector containing all the masses of the bodies
     buffer<double> masses(simulationData.mass.data(), simulationData.mass.size());
@@ -114,7 +107,7 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
 
     // compute initial accelerations
     auto beginAccelerationKernel1 = std::chrono::steady_clock::now();
-    computeAccelerations(queues, masses, intermediatePosition_x, intermediatePosition_y,
+    computeAccelerations(queue, masses, intermediatePosition_x, intermediatePosition_y,
                          intermediatePosition_z,
                          acceleration_x, acceleration_y, acceleration_z);
     auto end1 = std::chrono::steady_clock::now();
@@ -128,8 +121,7 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
     if (configuration::compute_energy) {
         // compute energy of the initial step.
         computeEnergy(queue, masses, currentStep, intermediatePosition_x, intermediatePosition_y,
-                      intermediatePosition_z,
-                      intermediateVelocity_x, intermediateVelocity_y, intermediateVelocity_z);
+                      intermediatePosition_z, intermediateVelocity_x, intermediateVelocity_y, intermediateVelocity_z);
     }
 
 
@@ -213,7 +205,7 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
         auto endTreeCreation = std::chrono::steady_clock::now();
 
         auto beginAccelerationKernel = std::chrono::steady_clock::now();
-        computeAccelerations(queues, masses, intermediatePosition_x, intermediatePosition_y,
+        computeAccelerations(queue, masses, intermediatePosition_x, intermediatePosition_y,
                              intermediatePosition_z,
                              acceleration_x, acceleration_y, acceleration_z);
         auto end = std::chrono::steady_clock::now();
@@ -275,24 +267,18 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
                               intermediateVelocity_z);
             }
 
-
             // reset time for next visualization time step
             currentStep += 1;
             timeSinceLastVisualization = 0.0;
         }
 
-
-
         // continue with next simulation step
         time += dt;
         timeSinceLastVisualization += dt;
-
     }
-
-
 }
 
-void BarnesHutAlgorithm::computeAccelerations(std::vector<queue> &queues, buffer<double> &masses,
+void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &masses,
                                               buffer<double> &currentPositions_x,
                                               buffer<double> &currentPositions_y,
                                               buffer<double> &currentPositions_z,
@@ -301,158 +287,112 @@ void BarnesHutAlgorithm::computeAccelerations(std::vector<queue> &queues, buffer
     auto begin = std::chrono::steady_clock::now();
 
     double epsilon_2 = configuration::epsilon2;
-
     std::size_t N = configuration::numberOfBodies;
+    double G = this->G;
+    double THETA = configuration::barnes_hut_algorithm::theta;
+    std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
+    std::size_t stack_size = configuration::barnes_hut_algorithm::stackSize;
+    bool bodiesSorted = configuration::barnes_hut_algorithm::sortBodies;
 
-    std::size_t num_devices = queues.size();
-
-    int workGroupSize = 16;
+    int workGroupSize = configuration::barnes_hut_algorithm::workGroupSize;
     std::size_t padding = workGroupSize - (configuration::numberOfBodies % workGroupSize);
 
-    std::size_t workGroupCount = (N + padding) / workGroupSize;
 
-    // Work group count for all devices except the last one
-    std::size_t wgCountPerDevice = std::floor((double) workGroupCount / (double) num_devices);
+    queue.submit([&](handler &h) {
+        accessor<double> POS_X(currentPositions_x, h);
+        accessor<double> POS_Y(currentPositions_y, h);
+        accessor<double> POS_Z(currentPositions_z, h);
+        accessor<double> SUM_MASSES(octree.sumOfMasses, h);
+        accessor<double> ACC_X(acceleration_x, h);
+        accessor<double> ACC_Y(acceleration_y, h);
+        accessor<double> ACC_Z(acceleration_z, h);
+        accessor<double> EDGE_LENGTHS(octree.edgeLengths, h);
+        accessor<double> CENTER_OF_MASS_X(octree.massCenters_x, h);
+        accessor<double> CENTER_OF_MASS_Y(octree.massCenters_y, h);
+        accessor<double> CENTER_OF_MASS_Z(octree.massCenters_z, h);
+        accessor<std::size_t> OCTANTS(octree.octants, h);
+        accessor<std::size_t> BODY_OF_NODE(octree.bodyOfNode, h);
+        accessor<std::size_t> NODES_ON_STACK(nodesOnStack, h);
+        accessor<std::size_t> SORTED_BODIES(octree.sortedBodiesInOrder, h);
 
-    // Work group count for the last device: the rest of the total amount of work groups
-    std::size_t wgCountLastDevice = workGroupCount - (wgCountPerDevice * (num_devices - 1));
+        auto kernelRange = nd_range<1>(range<1>(configuration::numberOfBodies + padding), range<1>(workGroupSize));
 
-    int queue_idx = 0;
-    for (queue queue: queues) {
-        // for all queues determine the amount of work groups that will get submitted to the device bound to the queue
+        h.parallel_for(kernelRange, [=](auto &nd_item) {
+            std::size_t id = nd_item.get_global_id();
 
-        std::size_t currentWorkGroupCount;
-        if (queue_idx != queues.size() - 1) {
-            currentWorkGroupCount = wgCountPerDevice;
-        } else {
-            // the current queue is the last (or only) queue in the list --> gets all remaining work groups
-            currentWorkGroupCount = wgCountLastDevice;
-        }
+            if (id < N) {
+                // i > N is not valid since it is part of the padding.
+                double acc_x = 0;
+                double acc_y = 0;
+                double acc_z = 0;
 
-        // the index of the first body that is assigned to this device
-        std::size_t startIndex = queue_idx * wgCountPerDevice * workGroupSize;
+                // determine current body ID of work-item
+                std::size_t i;
+                if (bodiesSorted) {
+                    i = SORTED_BODIES[id];
+                } else {
+                    i = id;
+                }
 
-        queue.submit([&](handler &h) {
-            accessor<double> POS_X(currentPositions_x, h);
-            accessor<double> POS_Y(currentPositions_y, h);
-            accessor<double> POS_Z(currentPositions_z, h);
-            accessor<double> SUM_MASSES(octree.sumOfMasses, h);
-            accessor<double> ACC_X(acceleration_x, h);
-            accessor<double> ACC_Y(acceleration_y, h);
-            accessor<double> ACC_Z(acceleration_z, h);
-            accessor<double> EDGE_LENGTHS(octree.edgeLengths, h);
-            accessor<double> CENTER_OF_MASS_X(octree.massCenters_x, h);
-            accessor<double> CENTER_OF_MASS_Y(octree.massCenters_y, h);
-            accessor<double> CENTER_OF_MASS_Z(octree.massCenters_z, h);
-            accessor<std::size_t> OCTANTS(octree.octants, h);
-            accessor<std::size_t> BODY_OF_NODE(octree.bodyOfNode, h);
-            accessor<std::size_t> NODES_ON_STACK(nodesOnStack, h);
-            accessor<std::size_t> SORTED_BODIES(octree.sortedBodiesInOrder, h);
+                double pos_x_i = POS_X[i];
+                double pos_y_i = POS_Y[i];
+                double pos_z_i = POS_Z[i];
 
-            double G = this->G;
-            double THETA = configuration::barnes_hut_algorithm::theta;
+                std::size_t currentStackIndex = (stack_size * i) + 1; // start index for the stack of current work item.
+                NODES_ON_STACK[currentStackIndex] = 0; // push the root node on the stack
 
-            std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
+                while (currentStackIndex != (stack_size * i)) { // while stack not empty
 
-            std::size_t stack_size = configuration::barnes_hut_algorithm::stackSize;
+                    std::size_t current_Node = NODES_ON_STACK[currentStackIndex]; // get node from stack
+                    currentStackIndex -= 1;
 
-            bool bodiesSorted = configuration::barnes_hut_algorithm::sortBodies;
+                    if (SUM_MASSES[current_Node] != 0 && BODY_OF_NODE[current_Node] != i) {
+                        // the node is not empty and does not contain the current body.
+                        double d_x = (CENTER_OF_MASS_X[current_Node] / SUM_MASSES[current_Node]) - pos_x_i;
+                        double d_y = (CENTER_OF_MASS_Y[current_Node] / SUM_MASSES[current_Node]) - pos_y_i;
+                        double d_z = (CENTER_OF_MASS_Z[current_Node] / SUM_MASSES[current_Node]) - pos_z_i;
 
+                        double d = sycl::rsqrt(d_x * d_x + d_y * d_y + d_z * d_z);
 
-            h.parallel_for(
-                    nd_range<1>(range<1>(currentWorkGroupCount * workGroupSize), range<1>(workGroupSize)),
-                    [=](auto &nd_item) {
-                        std::size_t id = startIndex + nd_item.get_global_id();
+                        double currentTheta = EDGE_LENGTHS[current_Node] * d;
 
-                        if (id < N) {
-                            // i > N is not valid since it is part of the padding.
-                            double acc_x = 0;
-                            double acc_y = 0;
-                            double acc_z = 0;
+                        if (((currentTheta < THETA) || BODY_OF_NODE[current_Node] != N)) {
+                            // center of mass of the node can be used to compute the acceleration
+                            double denominator = (d_x * d_x) + (d_y * d_y) + (d_z * d_z) + epsilon_2;
+                            denominator = denominator * denominator * denominator;
+                            denominator = sycl::rsqrt(denominator);
 
-                            std::size_t i;
-                            if (bodiesSorted) {
-                                i = SORTED_BODIES[id];
-                            } else {
-                                i = id;
-                            }
-
-
-                            double pos_x_i = POS_X[i];
-                            double pos_y_i = POS_Y[i];
-                            double pos_z_i = POS_Z[i];
-
-
-                            std::size_t currentStackIndex =
-                                    (stack_size * i) + 1; // start index for the stack of current work item.
-                            NODES_ON_STACK[currentStackIndex] = 0; // push the root node on the stack
-
-                            while (currentStackIndex != (stack_size * i)) {
-
-                                std::size_t current_Node = NODES_ON_STACK[currentStackIndex]; // get node from stack
-                                currentStackIndex -= 1;
-
-
-                                if (SUM_MASSES[current_Node] != 0 && BODY_OF_NODE[current_Node] != i) {
-                                    // the node is not empty and does not contain the current body.
-                                    double d_x = (CENTER_OF_MASS_X[current_Node] / SUM_MASSES[current_Node]) - pos_x_i;
-                                    double d_y = (CENTER_OF_MASS_Y[current_Node] / SUM_MASSES[current_Node]) - pos_y_i;
-                                    double d_z = (CENTER_OF_MASS_Z[current_Node] / SUM_MASSES[current_Node]) - pos_z_i;
-
-                                    double d = sycl::rsqrt(d_x * d_x + d_y * d_y + d_z * d_z);
-
-                                    double currentTheta = EDGE_LENGTHS[current_Node] * d;
-                                    if (((currentTheta < THETA) || BODY_OF_NODE[current_Node] != N)) {
-                                        // center of mass of the node can be used to compute the acceleration
-
-                                        double denominator = (d_x * d_x) + (d_y * d_y) + (d_z * d_z) + epsilon_2;
-                                        denominator = denominator * denominator * denominator;
-                                        denominator = sycl::rsqrt(denominator);
-
-//                        double denominator = sycl::sqrt((d_x * d_x) + (d_y * d_y) + (d_z * d_z) + epsilon_2);
-//                        denominator = denominator * denominator * denominator;
-//
-//                        acc_x += SUM_MASSES[current_Node] * (d_x / denominator);
-//                        acc_y += SUM_MASSES[current_Node] * (d_y / denominator);
-//                        acc_z += SUM_MASSES[current_Node] * (d_z / denominator);
-
-                                        acc_x += SUM_MASSES[current_Node] * (d_x * denominator);
-                                        acc_y += SUM_MASSES[current_Node] * (d_y * denominator);
-                                        acc_z += SUM_MASSES[current_Node] * (d_z * denominator);
-
-                                    } else {
-                                        // center of mass of the node can not be used --> Push all children on the stack and continue
-                                        currentStackIndex += 1;
-                                        NODES_ON_STACK[currentStackIndex] = OCTANTS[5 * storageSize + current_Node];
-                                        currentStackIndex += 1;
-                                        NODES_ON_STACK[currentStackIndex] = OCTANTS[7 * storageSize + current_Node];
-                                        currentStackIndex += 1;
-                                        NODES_ON_STACK[currentStackIndex] = OCTANTS[4 * storageSize + current_Node];
-                                        currentStackIndex += 1;
-                                        NODES_ON_STACK[currentStackIndex] = OCTANTS[6 * storageSize + current_Node];
-                                        currentStackIndex += 1;
-                                        NODES_ON_STACK[currentStackIndex] = OCTANTS[1 * storageSize + current_Node];
-                                        currentStackIndex += 1;
-                                        NODES_ON_STACK[currentStackIndex] = OCTANTS[3 * storageSize + current_Node];
-                                        currentStackIndex += 1;
-                                        NODES_ON_STACK[currentStackIndex] = OCTANTS[0 + current_Node];
-                                        currentStackIndex += 1;
-                                        NODES_ON_STACK[currentStackIndex] = OCTANTS[2 * storageSize + current_Node];
-                                    }
-                                }
-                            }
-                            ACC_X[i] = acc_x * G;
-                            ACC_Y[i] = acc_y * G;
-                            ACC_Z[i] = acc_z * G;
+                            acc_x += SUM_MASSES[current_Node] * (d_x * denominator);
+                            acc_y += SUM_MASSES[current_Node] * (d_y * denominator);
+                            acc_z += SUM_MASSES[current_Node] * (d_z * denominator);
+                        } else {
+                            // center of mass of the node can not be used --> Push all children on the stack and continue
+                            currentStackIndex += 1;
+                            NODES_ON_STACK[currentStackIndex] = OCTANTS[5 * storageSize + current_Node];
+                            currentStackIndex += 1;
+                            NODES_ON_STACK[currentStackIndex] = OCTANTS[7 * storageSize + current_Node];
+                            currentStackIndex += 1;
+                            NODES_ON_STACK[currentStackIndex] = OCTANTS[4 * storageSize + current_Node];
+                            currentStackIndex += 1;
+                            NODES_ON_STACK[currentStackIndex] = OCTANTS[6 * storageSize + current_Node];
+                            currentStackIndex += 1;
+                            NODES_ON_STACK[currentStackIndex] = OCTANTS[1 * storageSize + current_Node];
+                            currentStackIndex += 1;
+                            NODES_ON_STACK[currentStackIndex] = OCTANTS[3 * storageSize + current_Node];
+                            currentStackIndex += 1;
+                            NODES_ON_STACK[currentStackIndex] = OCTANTS[0 + current_Node];
+                            currentStackIndex += 1;
+                            NODES_ON_STACK[currentStackIndex] = OCTANTS[2 * storageSize + current_Node];
                         }
-                    });
+                    }
+                }
+                ACC_X[i] = acc_x * G;
+                ACC_Y[i] = acc_y * G;
+                ACC_Z[i] = acc_z * G;
+            }
         });
-        queue_idx += 1;
-    }
+    }).wait();
 
-    for (queue queue: queues) {
-        queue.wait();
-    }
 
     auto end = std::chrono::steady_clock::now();
     std::cout << std::chrono::duration<double, std::milli>(end - begin).count() << std::endl;

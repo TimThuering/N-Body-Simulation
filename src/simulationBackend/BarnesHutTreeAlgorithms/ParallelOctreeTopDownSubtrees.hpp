@@ -18,7 +18,7 @@ public:
     std::vector<std::size_t> subtreeOfNode_vec;
     buffer<std::size_t> subtreeOfNode;
 
-    // stores all bodies that still need to be inserted ordered by their corresponding subtrees
+    // stores all bodies that still need to be inserted into the subtrees ordered by their corresponding subtrees
     std::vector<std::size_t> sortedBodies_vec;
     buffer<std::size_t> sortedBodies;
 

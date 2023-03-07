@@ -1,13 +1,11 @@
 #include "Configuration.hpp"
 #include <cmath>
-#include <sycl/sycl.hpp>
 
 // initialize with default values
 std::size_t configuration::numberOfBodies = 0;
 //double configuration::epsilon2 = std::pow(10, -2);
 double configuration::epsilon2 = std::pow(10, -22);
 bool configuration::compute_energy = false;
-int configuration::gpu_count = 1;
 bool configuration::use_GPUs = true;
 
 int configuration::naive_algorithm::tileSizeNaiveAlg = 64;
@@ -21,6 +19,7 @@ double configuration::barnes_hut_algorithm::theta = 1.05;
 int configuration::barnes_hut_algorithm::maxBuildLevel = 7;
 std::size_t configuration::barnes_hut_algorithm::stackSize = 0;
 bool configuration::barnes_hut_algorithm::sortBodies = true;
+int configuration::barnes_hut_algorithm::workGroupSize = 64;
 
 void configuration::initializeConfigValues(std::size_t bodyCount, int storageSizeParam, int stackSizeParam) {
     configuration::numberOfBodies = bodyCount;
@@ -61,10 +60,10 @@ void configuration::setSortBodies(bool sort_bodies) {
     configuration::barnes_hut_algorithm::sortBodies = sort_bodies;
 }
 
-void configuration::setGPUCount(int gpuCount) {
-    configuration::gpu_count = gpuCount;
-}
-
 void configuration::setDeviceGPU(bool useGPU) {
     configuration::use_GPUs = useGPU;
+}
+
+void configuration::setWorkGroupSizeBarnesHut(int workGroupSize) {
+    configuration::barnes_hut_algorithm::workGroupSize = workGroupSize;
 }

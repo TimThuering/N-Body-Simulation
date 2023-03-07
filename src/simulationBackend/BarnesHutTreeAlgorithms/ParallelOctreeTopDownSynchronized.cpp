@@ -385,6 +385,7 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                                             //nd_item.mem_fence(access::fence_space::global_and_local);
                                         }
                                         // release the lock
+                                        nd_item.mem_fence(access::fence_space::global_and_local);
                                         atomicNodeIsLockedAccessor.fetch_sub(1, memory_order::acq_rel,
                                                                              memory_scope::device);
                                     }

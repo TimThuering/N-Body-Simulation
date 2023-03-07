@@ -15,9 +15,6 @@ namespace configuration {
     // compute the energy of the system in each visualized time step.
     extern bool compute_energy;
 
-    // number of GPUs to be used for the simulation
-    extern int gpu_count;
-
     // If true, GPUs will be used for the computation. If false CPUs will be used.
     extern bool use_GPUs;
 
@@ -41,6 +38,11 @@ namespace configuration {
          * performance but lose precision.
          */
         extern double theta;
+
+        /*
+         * Defines the work-group size for the acceleration kernel of the Barnes-Hut algorithm.
+         */
+        extern int workGroupSize;
 
         /*
          * Parameter that determines the size of the stack used to traverse the tree during the acceleration computation
@@ -102,9 +104,9 @@ namespace configuration {
 
     void setSortBodies(bool sort_bodies);
 
-    void setGPUCount(int gpuCount);
-
     void setDeviceGPU(bool useGPU);
+
+    void setWorkGroupSizeBarnesHut(int workGroupSize);
 
 }
 
