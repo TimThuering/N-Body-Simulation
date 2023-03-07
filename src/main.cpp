@@ -83,10 +83,9 @@ int main(int argc, char *argv[]) {
              cxxopts::value<bool>());
 
     arguments.add_options()
-            ("gpu_count",
-             "Set the maximum number of GPUs to use for the simulation",
+            ("wg_size_barnes_hut",
+             "Determines the work-group size of the acceleration kernel in the Barnes-Hut algorithm",
              cxxopts::value<int>());
-
 
     auto options = arguments.parse(argc, argv);
 
@@ -135,10 +134,6 @@ int main(int argc, char *argv[]) {
         configuration::setDeviceGPU(options["use_gpus"].as<bool>());
     }
 
-    if (options.count("gpu_count") == 1) {
-        configuration::setGPUCount(options["use_gpus"].as<int>());
-    }
-
 
     if (options["algorithm"].as<std::string>() == "naive") {
         // overwrite default values of naive algorithm if specified as program argument
@@ -178,6 +173,9 @@ int main(int argc, char *argv[]) {
             configuration::setSortBodies(options["sort_bodies"].as<bool>());
         }
 
+        if (options.count("wg_size_barnes_hut")) {
+            configuration::setWorkGroupSizeBarnesHut(options["wg_size_barnes_hut"].as<int>());
+        }
 
 
         std::cout << "Barnes-Hut algorithm configuration:" << std::endl;
@@ -193,6 +191,8 @@ int main(int argc, char *argv[]) {
         std::cout << "Maximum build level top of octree ------- " << configuration::barnes_hut_algorithm::maxBuildLevel
                   << std::endl;
 #endif
+        std::cout << "Work-group size acceleration kernel ----- " << configuration::barnes_hut_algorithm::workGroupSize
+                  << std::endl;
         std::cout << "Sort Bodies enabled --------------------- " << configuration::barnes_hut_algorithm::sortBodies
                   << std::endl;
         std::cout << std::endl << std::endl;
