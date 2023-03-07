@@ -22,7 +22,7 @@ void TimeMeasurement::exportJSON(const std::string &path) {
     jsonFile << "  " << "\"algorithm\": " << "\"" << algorithmType << "\",\n";
     jsonFile << "  " << "\"device\": " << "\"" << device << "\",\n";
     if (algorithmType == "Naive Algorithm") {
-        jsonFile << "  " << "\"block size\": " << "\"" << configuration::naive_algorithm::tileSizeNaiveAlg << ",\n";
+        jsonFile << "  " << "\"block size\": " << configuration::naive_algorithm::tileSizeNaiveAlg << ",\n";
     } else {
         jsonFile << "  " << "\"theta\": " << configuration::barnes_hut_algorithm::theta << ",\n";
         jsonFile << "  " << "\"work-items AABB\": " << configuration::barnes_hut_algorithm::AABBWorkItemCount << ",\n";
