@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.9)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -22,7 +22,7 @@ include_directories(src/simulationBackend)
 include_directories(src/simulationBackend/BarnesHutTreeAlgorithms)
 
 # uncomment for debugging
- set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-limit-debug-info")
+ #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-limit-debug-info")
 
 
 add_executable(N_Body_Simulation
