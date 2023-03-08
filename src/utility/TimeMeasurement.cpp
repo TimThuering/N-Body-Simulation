@@ -57,7 +57,7 @@ void TimeMeasurement::exportJSON(const std::string &path) {
     jsonFile.close();
 }
 
-void TimeMeasurement::setProperties(std::string &algorithm, std::size_t &bodyCountArg, std::string &deviceArg) {
+void TimeMeasurement::setProperties(std::string &algorithm, d_type::int_t &bodyCountArg, std::string &deviceArg) {
     this->algorithmType = algorithm;
     this->bodyCount = bodyCountArg;
     this->device = deviceArg;

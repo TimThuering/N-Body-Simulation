@@ -10,8 +10,8 @@ double TimeConverter::convertToEarthDays(std::string &time) {
     double timeNotConverted;
     double convertedTime;
 
-    size_t charactersConverted = 0; //stores the amount of characters converted by std::stod
-    size_t *charactersConverted_ptr = &charactersConverted;
+    std::size_t charactersConverted = 0; //stores the amount of characters converted by std::stod
+    std::size_t *charactersConverted_ptr = &charactersConverted;
 
     std::string prefix = time.substr(0, time.length() - 1); // the prefix of the input should be the double value
 
@@ -24,7 +24,7 @@ double TimeConverter::convertToEarthDays(std::string &time) {
 
     // check if the whole prefix got converted
     if (charactersConverted != prefix.length()) {
-        throw std::invalid_argument("\"Time values have to be of the format <double><h|d|m|y>\"");
+        throw std::invalid_argument("Time values have to be of the format <double><h|d|m|y>");
     }
 
     // convert the prefix containing the time value according to what the descriptor (suffix) was

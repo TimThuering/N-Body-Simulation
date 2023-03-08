@@ -4,10 +4,13 @@
 #include <cstddef>
 #include <string>
 #include <sycl/sycl.hpp>
+namespace d_type{
+    typedef unsigned int int_t;     // type definition for integer data type
+}
 
 namespace configuration {
     // total number of bodies used in the simulation
-    extern std::size_t numberOfBodies;
+    extern d_type::int_t numberOfBodies;
 
     // Softening factor for the acceleration computation
     extern double epsilon2;
@@ -49,14 +52,14 @@ namespace configuration {
          * of the Barnes-Hut algorithm.
          * Depends on the log_2 of the number of bodies in the example.
          */
-        extern std::size_t stackSize;
+        extern d_type::int_t stackSize;
 
         /*
          * Parameter used to determine the amount of storage that will be allocated for various fields needed by the
          * Barnes-Hut algorithm implementation.
          * The value will depend on the total number of bodies used for the simulation in order to scale with it.
          */
-        extern std::size_t storageSizeParameter;
+        extern d_type::int_t storageSizeParameter;
 
         // Number of work-items used for AABB computation
         extern int AABBWorkItemCount;
@@ -84,7 +87,7 @@ namespace configuration {
     /*
      * Initializes the number of bodies used for this simulation and all configuration values that depend on the number of bodies
      */
-    void initializeConfigValues(std::size_t bodyCount, int storageSizeParam, int stackSizeParam);
+    void initializeConfigValues(d_type::int_t bodyCount, int storageSizeParam, int stackSizeParam);
 
     // setter for the configuration values
 
@@ -109,5 +112,7 @@ namespace configuration {
     void setWorkGroupSizeBarnesHut(int workGroupSize);
 
 }
+
+
 
 #endif //N_BODY_SIMULATION_CONFIGURATION_HPP

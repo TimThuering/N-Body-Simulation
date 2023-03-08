@@ -6,8 +6,9 @@
 #include <filesystem>
 #include <fstream>
 #include "TimeMeasurement.hpp"
+#include "Configuration.hpp"
 
-void nBodyAlgorithm::computeEnergy(queue &queue, buffer<double> &masses, std::size_t currentStep,
+void nBodyAlgorithm::computeEnergy(queue &queue, buffer<double> &masses, d_type::int_t currentStep,
                                    buffer<double> &currentPositions_x,
                                    buffer<double> &currentPositions_y, buffer<double>
                                    &currentPositions_z,
@@ -67,7 +68,7 @@ void nBodyAlgorithm::computeEnergy(queue &queue, buffer<double> &masses, std::si
     host_accessor<double> E_KIN(E_kin_values);
     host_accessor<double> E_POT(E_pot_values);
 
-    for (std::size_t i = 0; i < configuration::numberOfBodies; ++i) {
+    for (d_type::int_t i = 0; i < configuration::numberOfBodies; ++i) {
         E_kin_result += E_KIN[i];
         E_pot_result += E_POT[i];
     }
@@ -84,14 +85,14 @@ void nBodyAlgorithm::computeEnergy(queue &queue, buffer<double> &masses, std::si
     virialEquilibrium[currentStep] = (2.0 * E_kin_result) / std::abs(E_pot_result);
 }
 
-void nBodyAlgorithm::storeAccelerations(std::size_t currentStep, buffer<double> &acceleration_x,
+void nBodyAlgorithm::storeAccelerations(d_type::int_t currentStep, buffer<double> &acceleration_x,
                                         buffer<double> &acceleration_y, buffer<double> &acceleration_z) {
 
     host_accessor<double> ACC_X(acceleration_x);
     host_accessor<double> ACC_Y(acceleration_y);
     host_accessor<double> ACC_Z(acceleration_z);
 
-    for (std::size_t i = 0; i < configuration::numberOfBodies; ++i) {
+    for (d_type::int_t i = 0; i < configuration::numberOfBodies; ++i) {
         double accelerationNorm = ACC_X[i] * ACC_X[i] +
                                   ACC_Y[i] * ACC_Y[i] +
                                   ACC_Z[i] * ACC_Z[i];
@@ -152,7 +153,7 @@ void nBodyAlgorithm::generateParaViewOutput(const SimulationData &simulationData
             << '\n' << "<Collection>" << '\n';
 
 
-    for (std::size_t i = 0; i < positions_x.size(); ++i) {
+    for (d_type::int_t i = 0; i < positions_x.size(); ++i) {
 
         // generate file for simulation step i: simulation_step<i>.vtp
         std::string vtpFileName = "simulation_step" + std::to_string(i) + ".vtp";
@@ -283,13 +284,13 @@ void nBodyAlgorithm::writeKineticEnergy(size_t i, std::ofstream &vtpFile) {
 }
 
 void nBodyAlgorithm::writeConnectivity(size_t i, std::ofstream &vtpFile) {
-    for (std::size_t j = 0; j < positions_x[i].size(); ++j) {
+    for (d_type::int_t j = 0; j < positions_x[i].size(); ++j) {
         vtpFile << std::to_string(j) << ' ';
     }
 }
 
 void nBodyAlgorithm::writeOffsets(size_t i, std::ofstream &vtpFile) {
-    for (std::size_t j = 1; j <= positions_x[i].size(); ++j) {
+    for (d_type::int_t j = 1; j <= positions_x[i].size(); ++j) {
         vtpFile << std::to_string(j) << ' ';
     }
 }
@@ -316,13 +317,13 @@ void nBodyAlgorithm::writeMasses(const SimulationData &simulationData, std::ofst
 }
 
 void nBodyAlgorithm::writeAccelerations(size_t i, std::ofstream &vtpFile) {
-    for (std::size_t j = 0; j < positions_x[i].size(); ++j) {
+    for (d_type::int_t j = 0; j < positions_x[i].size(); ++j) {
         vtpFile << acceleration[i][j] << '\n';
     }
 }
 
 void nBodyAlgorithm::writeVelocities(size_t i, std::ofstream &vtpFile) {
-    for (std::size_t j = 0; j < velocities_x[i].size(); ++j) {
+    for (d_type::int_t j = 0; j < velocities_x[i].size(); ++j) {
         vtpFile << velocities_x[i].at(j) << " "
                 << velocities_y[i].at(j) << " "
                 << velocities_z[i].at(j) << '\n';
@@ -330,13 +331,13 @@ void nBodyAlgorithm::writeVelocities(size_t i, std::ofstream &vtpFile) {
 }
 
 void nBodyAlgorithm::writeIDs(size_t i, std::ofstream &vtpFile) {
-    for (std::size_t j = 0; j < positions_x[i].size(); ++j) {
+    for (d_type::int_t j = 0; j < positions_x[i].size(); ++j) {
         vtpFile << j << '\n';
     }
 }
 
 void nBodyAlgorithm::writePositions(size_t i, std::ofstream &vtpFile) {
-    for (std::size_t j = 0; j < positions_x[i].size(); ++j) {
+    for (d_type::int_t j = 0; j < positions_x[i].size(); ++j) {
         vtpFile << positions_x[i].at(j) << " "
                 << positions_y[i].at(j) << " "
                 << positions_z[i].at(j) << '\n';
@@ -357,11 +358,11 @@ void nBodyAlgorithm::outputLastState(const std::string &path) {
 
     std::ofstream csvFile(path);
 
-    std::size_t i = positions_x.size() - 1;
+    d_type::int_t i = positions_x.size() - 1;
 
     csvFile << "position_x, position_y, position_z \n";
 
-    for (std::size_t j = 0; j < positions_x[i].size(); ++j) {
+    for (d_type::int_t j = 0; j < positions_x[i].size(); ++j) {
         csvFile << positions_x[i].at(j) << ","
                 << positions_y[i].at(j) << ","
                 << positions_z[i].at(j) << '\n';

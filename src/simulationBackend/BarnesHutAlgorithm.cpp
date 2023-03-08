@@ -73,7 +73,7 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
     double timeSinceLastVisualization = 0.0; // used to determine the time steps that should be visualized
 
     // current visualization step of the simulation
-    std::size_t currentStep = 0;
+    d_type::int_t currentStep = 0;
 
     // configure the timer
     std::string device = queue.get_device().get_info<info::device::name>();
@@ -192,7 +192,7 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
             host_accessor<double> INTERMEDIATE_P_Y(intermediatePosition_y);
             host_accessor<double> INTERMEDIATE_P_Z(intermediatePosition_z);
 
-            for (std::size_t i = 0; i < configuration::numberOfBodies; ++i) {
+            for (d_type::int_t i = 0; i < configuration::numberOfBodies; ++i) {
                 positions_x[currentStep].push_back(INTERMEDIATE_P_X[i]);
                 positions_y[currentStep].push_back(INTERMEDIATE_P_Y[i]);
                 positions_z[currentStep].push_back(INTERMEDIATE_P_Z[i]);
@@ -253,7 +253,7 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
                 host_accessor<double> INTERMEDIATE_V_Z(intermediateVelocity_z);
 
                 // store current velocities for visualization
-                for (std::size_t i = 0; i < configuration::numberOfBodies; ++i) {
+                for (d_type::int_t i = 0; i < configuration::numberOfBodies; ++i) {
                     velocities_x[currentStep].push_back(INTERMEDIATE_V_X[i]);
                     velocities_y[currentStep].push_back(INTERMEDIATE_V_Y[i]);
                     velocities_z[currentStep].push_back(INTERMEDIATE_V_Z[i]);
@@ -287,15 +287,15 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
     auto begin = std::chrono::steady_clock::now();
 
     double epsilon_2 = configuration::epsilon2;
-    std::size_t N = configuration::numberOfBodies;
+    d_type::int_t N = configuration::numberOfBodies;
     double G = this->G;
     double THETA = configuration::barnes_hut_algorithm::theta;
-    std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
-    std::size_t stack_size = configuration::barnes_hut_algorithm::stackSize;
+    d_type::int_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
+    d_type::int_t stack_size = configuration::barnes_hut_algorithm::stackSize;
     bool bodiesSorted = configuration::barnes_hut_algorithm::sortBodies;
 
     int workGroupSize = configuration::barnes_hut_algorithm::workGroupSize;
-    std::size_t padding = workGroupSize - (configuration::numberOfBodies % workGroupSize);
+    d_type::int_t padding = workGroupSize - (configuration::numberOfBodies % workGroupSize);
 
 
     queue.submit([&](handler &h) {
@@ -310,15 +310,15 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
         accessor<double> CENTER_OF_MASS_X(octree.massCenters_x, h);
         accessor<double> CENTER_OF_MASS_Y(octree.massCenters_y, h);
         accessor<double> CENTER_OF_MASS_Z(octree.massCenters_z, h);
-        accessor<std::size_t> OCTANTS(octree.octants, h);
-        accessor<std::size_t> BODY_OF_NODE(octree.bodyOfNode, h);
-        accessor<std::size_t> NODES_ON_STACK(nodesOnStack, h);
-        accessor<std::size_t> SORTED_BODIES(octree.sortedBodiesInOrder, h);
+        accessor<d_type::int_t> OCTANTS(octree.octants, h);
+        accessor<d_type::int_t> BODY_OF_NODE(octree.bodyOfNode, h);
+        accessor<d_type::int_t> NODES_ON_STACK(nodesOnStack, h);
+        accessor<d_type::int_t> SORTED_BODIES(octree.sortedBodiesInOrder, h);
 
         auto kernelRange = nd_range<1>(range<1>(configuration::numberOfBodies + padding), range<1>(workGroupSize));
 
         h.parallel_for(kernelRange, [=](auto &nd_item) {
-            std::size_t id = nd_item.get_global_id();
+            d_type::int_t id = nd_item.get_global_id();
 
             if (id < N) {
                 // i > N is not valid since it is part of the padding.
@@ -327,7 +327,7 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
                 double acc_z = 0;
 
                 // determine current body ID of work-item
-                std::size_t i;
+                d_type::int_t i;
                 if (bodiesSorted) {
                     i = SORTED_BODIES[id];
                 } else {
@@ -338,12 +338,12 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
                 double pos_y_i = POS_Y[i];
                 double pos_z_i = POS_Z[i];
 
-                std::size_t currentStackIndex = (stack_size * i) + 1; // start index for the stack of current work item.
+                d_type::int_t currentStackIndex = (stack_size * i) + 1; // start index for the stack of current work item.
                 NODES_ON_STACK[currentStackIndex] = 0; // push the root node on the stack
 
                 while (currentStackIndex != (stack_size * i)) { // while stack not empty
 
-                    std::size_t current_Node = NODES_ON_STACK[currentStackIndex]; // get node from stack
+                    d_type::int_t current_Node = NODES_ON_STACK[currentStackIndex]; // get node from stack
                     currentStackIndex -= 1;
 
                     if (SUM_MASSES[current_Node] != 0 && BODY_OF_NODE[current_Node] != i) {

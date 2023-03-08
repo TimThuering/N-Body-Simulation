@@ -2,29 +2,27 @@
 #include <cmath>
 
 // initialize with default values
-std::size_t configuration::numberOfBodies = 0;
-//double configuration::epsilon2 = std::pow(10, -2);
+d_type::int_t configuration::numberOfBodies = 0;
 double configuration::epsilon2 = std::pow(10, -22);
 bool configuration::compute_energy = false;
 bool configuration::use_GPUs = true;
 
 int configuration::naive_algorithm::tileSizeNaiveAlg = 64;
 
-
-std::size_t configuration::barnes_hut_algorithm::storageSizeParameter = 0;
+d_type::int_t configuration::barnes_hut_algorithm::storageSizeParameter = 0;
 int configuration::barnes_hut_algorithm::AABBWorkItemCount = 100;
 int configuration::barnes_hut_algorithm::octreeWorkItemCount = 640;
 int configuration::barnes_hut_algorithm::octreeTopWorkItemCount = 640;
 double configuration::barnes_hut_algorithm::theta = 1.05;
 int configuration::barnes_hut_algorithm::maxBuildLevel = 7;
-std::size_t configuration::barnes_hut_algorithm::stackSize = 0;
+d_type::int_t configuration::barnes_hut_algorithm::stackSize = 0;
 bool configuration::barnes_hut_algorithm::sortBodies = true;
 int configuration::barnes_hut_algorithm::workGroupSize = 64;
 
-void configuration::initializeConfigValues(std::size_t bodyCount, int storageSizeParam, int stackSizeParam) {
+void configuration::initializeConfigValues(d_type::int_t bodyCount, int storageSizeParam, int stackSizeParam) {
     configuration::numberOfBodies = bodyCount;
     configuration::barnes_hut_algorithm::storageSizeParameter = storageSizeParam * numberOfBodies;
-    configuration::barnes_hut_algorithm::stackSize = stackSizeParam * (std::size_t) std::ceil(std::log2(bodyCount));
+    configuration::barnes_hut_algorithm::stackSize = stackSizeParam * (d_type::int_t) std::ceil(std::log2(bodyCount));
 
 }
 

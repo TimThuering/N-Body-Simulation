@@ -71,7 +71,7 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
     double timeSinceLastVisualization = 0.0; // used to determine the time steps that should be visualized
 
     // current visualization step of the simulation
-    std::size_t currentStep = 0;
+    d_type::int_t currentStep = 0;
 
     // configure timer for time tracking
     std::string device = "GPU";
@@ -159,7 +159,7 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
             host_accessor<double> INTERMEDIATE_P_Y(intermediatePosition_y);
             host_accessor<double> INTERMEDIATE_P_Z(intermediatePosition_z);
 
-            for (std::size_t i = 0; i < configuration::numberOfBodies; ++i) {
+            for (d_type::int_t i = 0; i < configuration::numberOfBodies; ++i) {
                 positions_x[currentStep].push_back(INTERMEDIATE_P_X[i]);
                 positions_y[currentStep].push_back(INTERMEDIATE_P_Y[i]);
                 positions_z[currentStep].push_back(INTERMEDIATE_P_Z[i]);
@@ -206,7 +206,7 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
                 host_accessor<double> INTERMEDIATE_V_Z(intermediateVelocity_z);
 
                 // store current velocities for visualization
-                for (std::size_t i = 0; i < configuration::numberOfBodies; ++i) {
+                for (d_type::int_t i = 0; i < configuration::numberOfBodies; ++i) {
                     velocities_x[currentStep].push_back(INTERMEDIATE_V_X[i]);
                     velocities_y[currentStep].push_back(INTERMEDIATE_V_Y[i]);
                     velocities_z[currentStep].push_back(INTERMEDIATE_V_Z[i]);
@@ -245,12 +245,12 @@ void NaiveAlgorithm::computeAccelerationsGPU(queue &queue, buffer<double> &masse
     double epsilon_2 = configuration::epsilon2;
     double G = this->G;
 
-    std::size_t N = configuration::numberOfBodies;
+    d_type::int_t N = configuration::numberOfBodies;
     int blockSize = configuration::naive_algorithm::tileSizeNaiveAlg;
 
     // global size of the nd_range kernel has to be divisible by the blockSize (local size).
     // The purpose of the padding is that numberOfBodies + padding is divisible by the block size.
-    std::size_t padding = blockSize - (configuration::numberOfBodies % blockSize);
+    d_type::int_t padding = blockSize - (configuration::numberOfBodies % blockSize);
 
     queue.submit([&](handler &h) {
         accessor<double> POS_X(currentPositions_x, h);
@@ -341,7 +341,7 @@ void NaiveAlgorithm::computeAccelerationsCPU(queue &queue, buffer<double> &masse
     auto begin = std::chrono::steady_clock::now();
     double epsilon_2 = configuration::epsilon2;
     double G = this->G;
-    std::size_t N = configuration::numberOfBodies;
+    d_type::int_t N = configuration::numberOfBodies;
 
     queue.submit([&](handler &h) {
 
@@ -359,7 +359,7 @@ void NaiveAlgorithm::computeAccelerationsCPU(queue &queue, buffer<double> &masse
             double acc_y = 0;
             double acc_z = 0;
 
-            for (std::size_t j = 0; j < N; ++j) {
+            for (d_type::int_t j = 0; j < N; ++j) {
                 double r_x = POS_X[j] - POS_X[i];
                 double r_y = POS_Y[j] - POS_Y[i];
                 double r_z = POS_Z[j] - POS_Z[i];
@@ -383,5 +383,4 @@ void NaiveAlgorithm::computeAccelerationsCPU(queue &queue, buffer<double> &masse
 
     std::cout << "Acceleration Kernel Time:  "
               << std::chrono::duration<double, std::milli>(end - begin).count() << std::endl;
-
 }

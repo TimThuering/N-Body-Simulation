@@ -42,8 +42,8 @@ public:
      * where octants[0] would contain the node ID of the lower south-west octant of the root node and size would
      * correspond to configuration::barnes_hut_algorithm::storageSizeParameter.
      */
-    std::vector<std::size_t> octants_vec;
-    buffer<std::size_t> octants;
+    std::vector<d_type::int_t> octants_vec;
+    buffer<d_type::int_t> octants;
 
     // the edge length of the octants
     std::vector<double> edgeLengths_vec;
@@ -59,8 +59,8 @@ public:
 
     // stores a body ID if the node is a leaf node.
     // the ID numberOfBodies denotes that the node does not hold any bodies, i.e. is not a leaf node
-    std::vector<std::size_t> bodyOfNode_vec;
-    buffer<std::size_t> bodyOfNode;
+    std::vector<d_type::int_t> bodyOfNode_vec;
+    buffer<d_type::int_t> bodyOfNode;
 
     // storage for flags indicating that the corresponding node is a leaf node
     std::vector<int> nodeIsLeaf_vec;
@@ -71,12 +71,12 @@ public:
     buffer<double> sumOfMasses;
 
     // storage that will be used to atomically determine the next unused node ID
-    std::vector<std::size_t> nextFreeNodeID_vec;
-    buffer<std::size_t> nextFreeNodeID;
+    std::vector<d_type::int_t> nextFreeNodeID_vec;
+    buffer<d_type::int_t> nextFreeNodeID;
 
     // nodes for which the center of Mass has to be computed after the preparation steps and the first iteration
-    std::vector<std::size_t> nodesToProcessCenterOfMass_vec;
-    buffer<std::size_t> nodesToProcessCenterOfMass;
+    std::vector<d_type::int_t> nodesToProcessCenterOfMass_vec;
+    buffer<d_type::int_t> nodesToProcessCenterOfMass;
 
     // the center of the masses of all bodies in the respective octants (only contain the numerator --> have to be divided by the corresponding sum of masses)
     std::vector<double> centerOfMass_x_vec;
@@ -87,12 +87,12 @@ public:
     buffer<double> massCenters_z;
 
     // stores the number of bodies contained in the cell represented by this node
-    std::vector<std::size_t> bodyCountNode_vec;
-    buffer<std::size_t> bodyCountNode;
+    std::vector<d_type::int_t> bodyCountNode_vec;
+    buffer<d_type::int_t> bodyCountNode;
 
     // stores the IDs of all bodies sorted according to their position in the octree
-    std::vector<std::size_t> sortedBodiesInOrder_vec;
-    buffer<std::size_t> sortedBodiesInOrder;
+    std::vector<d_type::int_t> sortedBodiesInOrder_vec;
+    buffer<d_type::int_t> sortedBodiesInOrder;
 
     /*
      * constructor that initializes all buffers needed for a generic octree. Subclasses of this class might create more buffers.

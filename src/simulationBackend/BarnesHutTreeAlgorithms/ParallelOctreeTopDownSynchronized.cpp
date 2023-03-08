@@ -18,11 +18,11 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
 
     auto endAABB_creation = std::chrono::steady_clock::now();
 
-    std::vector<std::size_t> maxTreeDepth_vec(1, 0);
-    buffer<std::size_t> maxTreeDepths(maxTreeDepth_vec.data(), maxTreeDepth_vec.size());
+    std::vector<d_type::int_t> maxTreeDepth_vec(1, 0);
+    buffer<d_type::int_t> maxTreeDepths(maxTreeDepth_vec.data(), maxTreeDepth_vec.size());
 
-    std::size_t N = configuration::numberOfBodies;
-    std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
+    d_type::int_t N = configuration::numberOfBodies;
+    d_type::int_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
 
 
     // set memory order for load and store operations depending on the SYCL implementation to allow compatibility with DPC++ and OpenSYCL
@@ -39,21 +39,20 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
 
     // initialize data structures for an empty tree
     queue.submit([&](handler &h) {
-
-        accessor<std::size_t> OCTANTS(octants, h);
+        accessor<d_type::int_t> OCTANTS(octants, h);
         accessor<double> EDGE_LENGTHS(edgeLengths, h);
         accessor<double> MIN_X(min_x_values, h);
         accessor<double> MIN_Y(min_y_values, h);
         accessor<double> MIN_Z(min_z_values, h);
-        accessor<std::size_t> NEXT_FREE_NODE_ID(nextFreeNodeID, h);
+        accessor<d_type::int_t> NEXT_FREE_NODE_ID(nextFreeNodeID, h);
         accessor<int> NODE_LOCKED(nodeIsLocked, h);
         accessor<int> NODE_IS_LEAF(nodeIsLeaf, h);
         accessor<double> SUM_MASSES(sumOfMasses, h);
         accessor<double> CENTER_OF_MASS_X(massCenters_x, h);
         accessor<double> CENTER_OF_MASS_Y(massCenters_y, h);
         accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
-        accessor<std::size_t> BODY_OF_NODE(bodyOfNode, h);
-        accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
+        accessor<d_type::int_t> BODY_OF_NODE(bodyOfNode, h);
+        accessor<d_type::int_t> BODY_COUNT_NODE(bodyCountNode, h);
 
 
         double edgeLength = AABB_EdgeLength;
@@ -106,22 +105,22 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
         accessor<double> POS_Y(current_positions_y, h);
         accessor<double> POS_Z(current_positions_z, h);
         accessor<double> MASSES(masses, h);
-        accessor<std::size_t> OCTANTS(octants, h);
+        accessor<d_type::int_t> OCTANTS(octants, h);
         accessor<double> EDGE_LENGTHS(edgeLengths, h);
         accessor<double> MIN_X(min_x_values, h);
         accessor<double> MIN_Y(min_y_values, h);
         accessor<double> MIN_Z(min_z_values, h);
-        accessor<std::size_t> BODY_OF_NODE(bodyOfNode, h);
+        accessor<d_type::int_t> BODY_OF_NODE(bodyOfNode, h);
         accessor<double> SUM_MASSES(sumOfMasses, h);
         accessor<double> CENTER_OF_MASS_X(massCenters_x, h);
         accessor<double> CENTER_OF_MASS_Y(massCenters_y, h);
         accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
-        accessor<std::size_t> NEXT_FREE_NODE_ID(nextFreeNodeID, h);
-        accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
+        accessor<d_type::int_t> NEXT_FREE_NODE_ID(nextFreeNodeID, h);
+        accessor<d_type::int_t> BODY_COUNT_NODE(bodyCountNode, h);
 
 
         // determine the maximum body count per work-item
-        std::size_t bodyCountPerWorkItem;
+        d_type::int_t bodyCountPerWorkItem;
         if (configuration::numberOfBodies > configuration::barnes_hut_algorithm::octreeWorkItemCount) {
             bodyCountPerWorkItem = std::ceil(
                     (double) configuration::numberOfBodies /
@@ -135,20 +134,20 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                             range<1>(configuration::barnes_hut_algorithm::octreeWorkItemCount)),
                 [=](auto &nd_item) {
 
-                    atomic_ref<std::size_t, memory_order::acq_rel, memory_scope::device,
+                    atomic_ref<d_type::int_t, memory_order::acq_rel, memory_scope::device,
                             access::address_space::global_space> nextFreeNodeIDAccessor(NEXT_FREE_NODE_ID[0]);
 
 
                     // for all bodies assigned to this work-item.
-                    for (std::size_t i = nd_item.get_global_id() * bodyCountPerWorkItem;
+                    for (d_type::int_t i = nd_item.get_global_id() * bodyCountPerWorkItem;
                          i <
-                         (std::size_t) (nd_item.get_global_id() * bodyCountPerWorkItem + bodyCountPerWorkItem); ++i) {
+                         (d_type::int_t) (nd_item.get_global_id() * bodyCountPerWorkItem + bodyCountPerWorkItem); ++i) {
 
                         // check if body ID actually exists
                         if (i < N) {
                             //start inserting at the root node
-                            std::size_t currentDepth = 0;
-                            std::size_t currentNode = 0;
+                            d_type::int_t currentDepth = 0;
+                            d_type::int_t currentNode = 0;
 
                             bool nodeInserted = false;
 
@@ -216,11 +215,11 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                                             } else {
                                                 // the leaf node already contains a body --> split the node and insert old body
 
-                                                std::size_t bodyIDinNode = BODY_OF_NODE[currentNode];
+                                                d_type::int_t bodyIDinNode = BODY_OF_NODE[currentNode];
 
                                                 // determine insertion index for the new child nodes and reserve 8 indices
-                                                std::size_t incr = 8;
-                                                std::size_t firstIndex = nextFreeNodeIDAccessor.fetch_add(incr);
+                                                d_type::int_t incr = 8;
+                                                d_type::int_t firstIndex = nextFreeNodeIDAccessor.fetch_add(incr);
 
 
                                                 double childEdgeLength = EDGE_LENGTHS[currentNode] / 2;
@@ -231,7 +230,7 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
 
 
                                                 // set the edge lengths of the child nodes
-                                                for (std::size_t idx = firstIndex; idx < firstIndex + 8; ++idx) {
+                                                for (d_type::int_t idx = firstIndex; idx < firstIndex + 8; ++idx) {
                                                     EDGE_LENGTHS[idx] = childEdgeLength;
                                                 }
 
@@ -291,7 +290,7 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                                                 // 0 is also the root node index, but since the root will never be a child of any node, it can be used here to identify
                                                 // leaf nodes.
                                                 // Furthermore, since these nodes do not contain any bodies yet, the impossible body ID numberOfBodies gets used.
-                                                for (std::size_t idx = firstIndex; idx < firstIndex + 8; ++idx) {
+                                                for (d_type::int_t idx = firstIndex; idx < firstIndex + 8; ++idx) {
                                                     OCTANTS[5 * storageSize + idx] = 0;
                                                     OCTANTS[7 * storageSize + idx] = 0;
                                                     OCTANTS[4 * storageSize + idx] = 0;
@@ -315,7 +314,7 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                                                 }
 
                                                 // determine the new octant for the old body
-                                                std::size_t octantID;
+                                                d_type::int_t octantID;
                                                 double parentMin_x = MIN_X[currentNode];
                                                 double parentMin_y = MIN_Y[currentNode];
                                                 double parentMin_z = MIN_Z[currentNode];
@@ -329,7 +328,7 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                                                         POS_Z[bodyIDinNode] < parentMin_z + (parentEdgeLength / 2);
 
                                                 // interpret as binary and convert into decimal
-                                                std::size_t octantAddress =
+                                                d_type::int_t octantAddress =
                                                         ((int) upperPart) * 4 + ((int) rightPart) * 2 +
                                                         ((int) backPart) * 1;
                                                 // find start index of octant type
@@ -393,7 +392,7 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                                     // the current node is not a leaf node, i.e. it has 8 children
                                     // --> determine the octant, the body has to be inserted and set this octant as current node.
 
-                                    std::size_t octantID;
+                                    d_type::int_t octantID;
                                     double parentMin_x = MIN_X[currentNode];
                                     double parentMin_y = MIN_Y[currentNode];
                                     double parentMin_z = MIN_Z[currentNode];
@@ -404,7 +403,7 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                                     bool backPart = POS_Z[i] < parentMin_z + (parentEdgeLength / 2);
 
                                     // interpret as binary and convert into decimal
-                                    std::size_t octantAddress =
+                                    d_type::int_t octantAddress =
                                             ((int) upperPart) * 4 + ((int) rightPart) * 2 + ((int) backPart) * 1;
 
                                     // find start index of octant type
@@ -494,14 +493,14 @@ void ParallelOctreeTopDownSynchronized::computeCenterOfGravity(queue &queue, buf
                                                                buffer<double> &current_positions_y,
                                                                buffer<double> &current_positions_z,
                                                                buffer<double> &masses) {
-    host_accessor<std::size_t> NUM_NODES(nextFreeNodeID);
-    std::size_t numberOfNodes = NUM_NODES[0];
+    host_accessor<d_type::int_t> NUM_NODES(nextFreeNodeID);
+    d_type::int_t numberOfNodes = NUM_NODES[0];
 
-    std::size_t N = configuration::numberOfBodies;
-    std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
+    d_type::int_t N = configuration::numberOfBodies;
+    d_type::int_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
 
 
-    std::size_t nodeCountPerWorkItem;
+    d_type::int_t nodeCountPerWorkItem;
     if (numberOfNodes > configuration::barnes_hut_algorithm::octreeWorkItemCount) {
         nodeCountPerWorkItem = std::ceil(
                 (double) numberOfNodes /
@@ -510,7 +509,7 @@ void ParallelOctreeTopDownSynchronized::computeCenterOfGravity(queue &queue, buf
         nodeCountPerWorkItem = 1;
     }
 
-    std::size_t workItemCount = configuration::barnes_hut_algorithm::octreeWorkItemCount;
+    d_type::int_t workItemCount = configuration::barnes_hut_algorithm::octreeWorkItemCount;
 
 
     queue.submit([&](handler &h) {
@@ -523,8 +522,8 @@ void ParallelOctreeTopDownSynchronized::computeCenterOfGravity(queue &queue, buf
         accessor<double> POS_Y(current_positions_y, h);
         accessor<double> POS_Z(current_positions_z, h);
         accessor<int> NODE_IS_LEAF(nodeIsLeaf, h);
-        accessor<std::size_t> OCTANTS(octants, h);
-        accessor<std::size_t> BODY_OF_NODE(bodyOfNode, h);
+        accessor<d_type::int_t> OCTANTS(octants, h);
+        accessor<d_type::int_t> BODY_OF_NODE(bodyOfNode, h);
 
         h.parallel_for(nd_range<1>(range<1>(workItemCount), range<1>(workItemCount)),
                        [=](auto &nd_item) {
@@ -535,16 +534,16 @@ void ParallelOctreeTopDownSynchronized::computeCenterOfGravity(queue &queue, buf
                                //start from the back so nodes that were created last (lower level) come first.
 
 //                               for (int i = 0; i < nodeCountPerWorkItem; ++i)  {
-                               for (std::size_t i = nd_item.get_global_id(); i < numberOfNodes; i += workItemCount) {
-                                   std::size_t index = numberOfNodes - 1 - i;
+                               for (d_type::int_t i = nd_item.get_global_id(); i < numberOfNodes; i += workItemCount) {
+                                   d_type::int_t index = numberOfNodes - 1 - i;
 
 
 //                                   if (nd_item.get_global_id() * nodeCountPerWorkItem + i > numberOfNodes - 1) {
 //                                       break;
 //                                   }
-//                                   std::size_t index = numberOfNodes - 1 - nd_item.get_global_id() * nodeCountPerWorkItem - i;
+//                                   d_type::int_t index = numberOfNodes - 1 - nd_item.get_global_id() * nodeCountPerWorkItem - i;
 
-                                   std::size_t bodyOfNode = BODY_OF_NODE[index];
+                                   d_type::int_t bodyOfNode = BODY_OF_NODE[index];
 
                                    if (SUM_MASSES[index] != 0) {
                                        // node already processed
@@ -567,7 +566,7 @@ void ParallelOctreeTopDownSynchronized::computeCenterOfGravity(queue &queue, buf
 
                                        bool allReady = true;
                                        for (int octant = 0; octant < 8; ++octant) {
-                                           std::size_t octantID = OCTANTS[index + octant * storageSize];
+                                           d_type::int_t octantID = OCTANTS[index + octant * storageSize];
 
                                            if (!((SUM_MASSES[octantID] != 0) ||
                                                  ((NODE_IS_LEAF[octantID] == 1) && BODY_OF_NODE[octantID] == N))) {
@@ -578,7 +577,7 @@ void ParallelOctreeTopDownSynchronized::computeCenterOfGravity(queue &queue, buf
 
                                            double sumMasses = 0;
                                            for (int octant = 0; octant < 8; ++octant) {
-                                               std::size_t octantID = OCTANTS[index + octant * storageSize];
+                                               d_type::int_t octantID = OCTANTS[index + octant * storageSize];
 
                                                CENTER_OF_MASS_X[index] += CENTER_OF_MASS_X[octantID];
                                                CENTER_OF_MASS_Y[index] += CENTER_OF_MASS_Y[octantID];

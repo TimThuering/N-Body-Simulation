@@ -6,6 +6,7 @@
 #include <cmath>
 #include "SimulationData.hpp"
 #include "TimeMeasurement.hpp"
+#include "Configuration.hpp"
 #include <sycl/sycl.hpp>
 
 using namespace sycl;
@@ -28,22 +29,22 @@ public:
     TimeMeasurement timer;
 
     // maps simulation step to computed position values
-    std::map<std::size_t, std::vector<double>> positions_x;
-    std::map<std::size_t, std::vector<double>> positions_y;
-    std::map<std::size_t, std::vector<double>> positions_z;
+    std::map<d_type::int_t, std::vector<double>> positions_x;
+    std::map<d_type::int_t, std::vector<double>> positions_y;
+    std::map<d_type::int_t, std::vector<double>> positions_z;
 
     // maps simulation step to computed velocity values
-    std::map<std::size_t, std::vector<double>> velocities_x;
-    std::map<std::size_t, std::vector<double>> velocities_y;
-    std::map<std::size_t, std::vector<double>> velocities_z;
+    std::map<d_type::int_t, std::vector<double>> velocities_x;
+    std::map<d_type::int_t, std::vector<double>> velocities_y;
+    std::map<d_type::int_t, std::vector<double>> velocities_z;
 
     // maps simulation step to computed acceleration values
-    std::map<std::size_t, std::vector<double>> acceleration;
+    std::map<d_type::int_t, std::vector<double>> acceleration;
 
-    std::map<std::size_t, double> kineticEnergy;
-    std::map<std::size_t, double> potentialEnergy;
-    std::map<std::size_t, double> totalEnergy;
-    std::map<std::size_t, double> virialEquilibrium;
+    std::map<d_type::int_t, double> kineticEnergy;
+    std::map<d_type::int_t, double> potentialEnergy;
+    std::map<d_type::int_t, double> totalEnergy;
+    std::map<d_type::int_t, double> virialEquilibrium;
 
     nBodyAlgorithm(double dt, double t_end, double visualizationStepWidth, std::string &outputDirectory) {
         this->dt = dt;
@@ -87,7 +88,7 @@ public:
      * The function makes use of SYCL for parallel computation.
      * The 7 buffers masses, current_position_{x,y,z} and velocities_{x,y,z} contain the respective values of each body in the current time step.
      */
-    void computeEnergy(queue &queue, buffer<double> &masses, std::size_t currentStep,
+    void computeEnergy(queue &queue, buffer<double> &masses, d_type::int_t currentStep,
                        buffer<double> &currentPositions_x,
                        buffer<double> &currentPositions_y, buffer<double>
                        &currentPositions_z,
@@ -99,7 +100,7 @@ public:
      * Compute the norm of the x,y and z component of the acceleration of each body in the current time step and saves
      * the values.
      */
-    void storeAccelerations(std::size_t currentStep, buffer<double> &acceleration_x,
+    void storeAccelerations(d_type::int_t currentStep, buffer<double> &acceleration_x,
                             buffer<double> &acceleration_y, buffer<double> &acceleration_z);
 
     /*

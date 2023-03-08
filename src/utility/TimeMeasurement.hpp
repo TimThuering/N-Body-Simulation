@@ -4,13 +4,14 @@
 #include <map>
 #include <vector>
 #include <string>
+#include "Configuration.hpp"
 
 class TimeMeasurement {
     std::map<std::string, std::vector<double>> times;
 
 public:
     std::string algorithmType;
-    std::size_t bodyCount;
+    d_type::int_t bodyCount;
     std::string device;
     /*
      * Adds a new key value pair to the map times with name as key.
@@ -24,7 +25,7 @@ public:
 
     void exportJSON(const std::string& path);
 
-    void setProperties(std::string &algorithm, std::size_t &bodyCount, std::string &device);
+    void setProperties(std::string &algorithm, d_type::int_t &bodyCount, std::string &device);
 };
 
 

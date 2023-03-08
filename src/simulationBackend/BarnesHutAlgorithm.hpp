@@ -22,8 +22,8 @@ public:
     // Contains the octree data structure including an operation to build the octree.
     Octree octree;
 
-    std::vector<std::size_t> nodesOnStack_vec;
-    buffer<std::size_t> nodesOnStack;
+    std::vector<d_type::int_t> nodesOnStack_vec;
+    buffer<d_type::int_t> nodesOnStack;
 
     BarnesHutAlgorithm(double dt, double tEnd, double visualizationStepWidth, std::string &outputDirectory);
 

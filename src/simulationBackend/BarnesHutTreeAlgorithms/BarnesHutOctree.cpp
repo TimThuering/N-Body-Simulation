@@ -53,7 +53,7 @@ void BarnesHutOctree::computeMinMaxValuesAABB(queue &queue, buffer<double> &curr
     max_z = std::numeric_limits<double>::lowest();
 
     int threadCount = configuration::barnes_hut_algorithm::AABBWorkItemCount;
-    int bodiesPerThread = std::ceil(numberOfBodies / threadCount);
+    int bodiesPerThread = std::ceil((double) numberOfBodies / (double) threadCount);
 
     std::vector<double> localMax_X_vec(threadCount);
     std::vector<double> localMax_Y_vec(threadCount);
@@ -71,6 +71,7 @@ void BarnesHutOctree::computeMinMaxValuesAABB(queue &queue, buffer<double> &curr
     buffer<double> localMin_Y(localMin_Y_vec.data(), localMin_Y_vec.size());
     buffer<double> localMin_Z(localMin_Z_vec.data(), localMin_Z_vec.size());
 
+    d_type::int_t N = numberOfBodies;
 
     queue.submit([&](handler &h) {
 
@@ -86,7 +87,6 @@ void BarnesHutOctree::computeMinMaxValuesAABB(queue &queue, buffer<double> &curr
         accessor<double> MAX_Y(localMax_Y, h);
         accessor<double> MAX_Z(localMax_Z, h);
 
-        std::size_t N = numberOfBodies;
 
         h.parallel_for(sycl::range<1>(threadCount), [=](auto &idx) {
 
@@ -121,37 +121,40 @@ void BarnesHutOctree::computeMinMaxValuesAABB(queue &queue, buffer<double> &curr
 
     for (int i = 0; i < threadCount; ++i) {
 
-        double current_min_x = MIN_X[i];
-        double current_min_y = MIN_Y[i];
-        double current_min_z = MIN_Z[i];
+        if (i < N) {
+            double current_min_x = MIN_X[i];
+            double current_min_y = MIN_Y[i];
+            double current_min_z = MIN_Z[i];
 
-        double current_max_x = MAX_X[i];
-        double current_max_y = MAX_Y[i];
-        double current_max_z = MAX_Z[i];
+            double current_max_x = MAX_X[i];
+            double current_max_y = MAX_Y[i];
+            double current_max_z = MAX_Z[i];
 
-        if (current_min_x < min_x) {
-            min_x = current_min_x;
+            if (current_min_x < min_x) {
+                min_x = current_min_x;
+            }
+
+            if (current_min_y < min_y) {
+                min_y = current_min_y;
+            }
+
+            if (current_min_z < min_z) {
+                min_z = current_min_z;
+            }
+
+            if (current_max_x > max_x) {
+                max_x = current_max_x;
+            }
+
+            if (current_max_y > max_y) {
+                max_y = current_max_y;
+            }
+
+            if (current_max_z > max_z) {
+                max_z = current_max_z;
+            }
         }
 
-        if (current_min_y < min_y) {
-            min_y = current_min_y;
-        }
-
-        if (current_min_z < min_z) {
-            min_z = current_min_z;
-        }
-
-        if (current_max_x > max_x) {
-            max_x = current_max_x;
-        }
-
-        if (current_max_y > max_y) {
-            max_y = current_max_y;
-        }
-
-        if (current_max_z > max_z) {
-            max_z = current_max_z;
-        }
 
     }
 
@@ -192,9 +195,9 @@ void BarnesHutOctree::prepareCenterOfMass(queue &queue, buffer<double> &current_
                                           buffer<double> &masses) {
 
     // get the amount of nodes of the tree
-    host_accessor<std::size_t> NUM_NODES(nextFreeNodeID);
-    std::size_t numberOfNodes = NUM_NODES[0];
-    std::size_t N = configuration::numberOfBodies;
+    host_accessor<d_type::int_t> NUM_NODES(nextFreeNodeID);
+    d_type::int_t numberOfNodes = NUM_NODES[0];
+    d_type::int_t N = configuration::numberOfBodies;
 
     // This kernel computes the center of mass values of all nodes which are a leaf node in the tree.
     queue.submit([&](handler &h) {
@@ -207,11 +210,11 @@ void BarnesHutOctree::prepareCenterOfMass(queue &queue, buffer<double> &current_
         accessor<double> POS_Y(current_positions_y, h);
         accessor<double> POS_Z(current_positions_z, h);
         accessor<int> NODE_IS_LEAF(nodeIsLeaf, h);
-        accessor<std::size_t> BODY_OF_NODE(bodyOfNode, h);
-        accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
+        accessor<d_type::int_t> BODY_OF_NODE(bodyOfNode, h);
+        accessor<d_type::int_t> BODY_COUNT_NODE(bodyCountNode, h);
 
         h.parallel_for(sycl::range<1>(numberOfNodes), [=](auto &i) {
-            std::size_t bodyInNode = BODY_OF_NODE[i];
+            d_type::int_t bodyInNode = BODY_OF_NODE[i];
             if ((NODE_IS_LEAF[i] == 1) && bodyInNode != N) {
                 // Node is a leaf node, and it contains a body
                 CENTER_OF_MASS_X[i] = POS_X[bodyInNode] * MASSES[bodyInNode];
@@ -232,13 +235,13 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
 
     prepareCenterOfMass(queue, current_positions_x, current_positions_y, current_positions_z, masses);
 
-    host_accessor<std::size_t> NUM_NODES(nextFreeNodeID);
-    std::size_t numberOfNodes = NUM_NODES[0];
+    host_accessor<d_type::int_t> NUM_NODES(nextFreeNodeID);
+    d_type::int_t numberOfNodes = NUM_NODES[0];
 
-    std::size_t N = configuration::numberOfBodies;
-    std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
+    d_type::int_t N = configuration::numberOfBodies;
+    d_type::int_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
 
-    std::size_t nodeCountPerWorkItem;
+    d_type::int_t nodeCountPerWorkItem;
     if (numberOfNodes > configuration::barnes_hut_algorithm::octreeWorkItemCount) {
         nodeCountPerWorkItem = std::ceil(
                 (double) numberOfNodes /
@@ -247,7 +250,7 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
         nodeCountPerWorkItem = 1;
     }
 
-    std::size_t workItemCount = configuration::barnes_hut_algorithm::octreeWorkItemCount;
+    d_type::int_t workItemCount = configuration::barnes_hut_algorithm::octreeWorkItemCount;
 
 
     queue.submit([&](handler &h) {
@@ -256,22 +259,22 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
         accessor<double> CENTER_OF_MASS_Y(massCenters_y, h);
         accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
         accessor<int> NODE_IS_LEAF(nodeIsLeaf, h);
-        accessor<std::size_t> OCTANTS(octants, h);
-        accessor<std::size_t> BODY_OF_NODE(bodyOfNode, h);
-        accessor<std::size_t> NODES_TO_PROCESS(nodesToProcessCenterOfMass, h);
-        accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
+        accessor<d_type::int_t> OCTANTS(octants, h);
+        accessor<d_type::int_t> BODY_OF_NODE(bodyOfNode, h);
+        accessor<d_type::int_t> NODES_TO_PROCESS(nodesToProcessCenterOfMass, h);
+        accessor<d_type::int_t> BODY_COUNT_NODE(bodyCountNode, h);
 
 
         h.parallel_for(nd_range<1>(range<1>(workItemCount), range<1>(workItemCount)), [=](auto &nd_item) {
 
-            std::size_t nextID = nd_item.get_global_id() * nodeCountPerWorkItem;
+            d_type::int_t nextID = nd_item.get_global_id() * nodeCountPerWorkItem;
 
-            for (std::size_t i = nd_item.get_global_id(); i < numberOfNodes; i += workItemCount) {
+            for (d_type::int_t i = nd_item.get_global_id(); i < numberOfNodes; i += workItemCount) {
 
                 //start with the last nodes which were created
-                std::size_t index = numberOfNodes - 1 - i;
+                d_type::int_t index = numberOfNodes - 1 - i;
 
-                std::size_t bodyInNode = BODY_OF_NODE[index];
+                d_type::int_t bodyInNode = BODY_OF_NODE[index];
 
                 if (SUM_MASSES[index] != 0) {
                     // node already processed
@@ -287,7 +290,7 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
 
                     bool allReady = true;
                     for (int octant = 0; octant < 8; ++octant) {
-                        std::size_t octantID = OCTANTS[index + octant * storageSize];
+                        d_type::int_t octantID = OCTANTS[index + octant * storageSize];
 
                         if (!((SUM_MASSES[octantID] != 0) ||
                               ((NODE_IS_LEAF[octantID] == 1) && BODY_OF_NODE[octantID] == N))) {
@@ -303,9 +306,9 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
                         double centerMassX = 0;
                         double centerMassY = 0;
                         double centerMassZ = 0;
-                        std::size_t bodyCount = 0;
+                        d_type::int_t bodyCount = 0;
                         for (int octant = 0; octant < 8; ++octant) {
-                            std::size_t octantID = OCTANTS[index + octant * storageSize];
+                            d_type::int_t octantID = OCTANTS[index + octant * storageSize];
                             centerMassX += CENTER_OF_MASS_X[octantID];
                             centerMassY += CENTER_OF_MASS_Y[octantID];
                             centerMassZ += CENTER_OF_MASS_Z[octantID];
@@ -330,10 +333,10 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
             bool allNodesProcessed = false;
             while (!allNodesProcessed) {
                 allNodesProcessed = true;
-                for (std::size_t i = nd_item.get_global_id() * nodeCountPerWorkItem; i < nextID; ++i) {
-                    std::size_t index = NODES_TO_PROCESS[i];
+                for (d_type::int_t i = nd_item.get_global_id() * nodeCountPerWorkItem; i < nextID; ++i) {
+                    d_type::int_t index = NODES_TO_PROCESS[i];
 
-                    std::size_t bodyInNode = BODY_OF_NODE[index];
+                    d_type::int_t bodyInNode = BODY_OF_NODE[index];
 
 
                     if (SUM_MASSES[index] != 0) {
@@ -350,7 +353,7 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
 
                         bool allReady = true;
                         for (int octant = 0; octant < 8; ++octant) {
-                            std::size_t octantID = OCTANTS[index + octant * storageSize];
+                            d_type::int_t octantID = OCTANTS[index + octant * storageSize];
 
                             if (!((SUM_MASSES[octantID] != 0) ||
                                   ((NODE_IS_LEAF[octantID] == 1) && BODY_OF_NODE[octantID] == N))) {
@@ -365,9 +368,9 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
                             double centerMassX = 0;
                             double centerMassY = 0;
                             double centerMassZ = 0;
-                            std::size_t bodyCount = 0;
+                            d_type::int_t bodyCount = 0;
                             for (int octant = 0; octant < 8; ++octant) {
-                                std::size_t octantID = OCTANTS[index + octant * storageSize];
+                                d_type::int_t octantID = OCTANTS[index + octant * storageSize];
                                 centerMassX += CENTER_OF_MASS_X[octantID];
                                 centerMassY += CENTER_OF_MASS_Y[octantID];
                                 centerMassZ += CENTER_OF_MASS_Z[octantID];
@@ -401,13 +404,13 @@ void BarnesHutOctree::computeCenterOfMass_CPU(queue &queue, buffer<double> &curr
 
     prepareCenterOfMass(queue, current_positions_x, current_positions_y, current_positions_z, masses);
 
-    host_accessor<std::size_t> NUM_NODES(nextFreeNodeID);
-    std::size_t numberOfNodes = NUM_NODES[0];
+    host_accessor<d_type::int_t> NUM_NODES(nextFreeNodeID);
+    d_type::int_t numberOfNodes = NUM_NODES[0];
 
-    std::size_t N = configuration::numberOfBodies;
-    std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
+    d_type::int_t N = configuration::numberOfBodies;
+    d_type::int_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
 
-    std::size_t nodeCountPerWorkItem;
+    d_type::int_t nodeCountPerWorkItem;
     if (numberOfNodes > configuration::barnes_hut_algorithm::octreeWorkItemCount) {
         nodeCountPerWorkItem = std::ceil(
                 (double) numberOfNodes /
@@ -416,7 +419,7 @@ void BarnesHutOctree::computeCenterOfMass_CPU(queue &queue, buffer<double> &curr
         nodeCountPerWorkItem = 1;
     }
 
-    std::size_t workItemCount = configuration::barnes_hut_algorithm::octreeWorkItemCount;
+    d_type::int_t workItemCount = configuration::barnes_hut_algorithm::octreeWorkItemCount;
 
 
     queue.submit([&](handler &h) {
@@ -425,25 +428,25 @@ void BarnesHutOctree::computeCenterOfMass_CPU(queue &queue, buffer<double> &curr
         accessor<double> CENTER_OF_MASS_Y(massCenters_y, h);
         accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
         accessor<int> NODE_IS_LEAF(nodeIsLeaf, h);
-        accessor<std::size_t> OCTANTS(octants, h);
-        accessor<std::size_t> BODY_OF_NODE(bodyOfNode, h);
-        accessor<std::size_t> NODES_TO_PROCESS(nodesToProcessCenterOfMass, h);
+        accessor<d_type::int_t> OCTANTS(octants, h);
+        accessor<d_type::int_t> BODY_OF_NODE(bodyOfNode, h);
+        accessor<d_type::int_t> NODES_TO_PROCESS(nodesToProcessCenterOfMass, h);
 
 
         h.parallel_for(nd_range<1>(range<1>(workItemCount), range<1>(workItemCount)),
                        [=](auto &nd_item) {
 
-                           std::size_t nextID = nd_item.get_global_id() * nodeCountPerWorkItem;
+                           d_type::int_t nextID = nd_item.get_global_id() * nodeCountPerWorkItem;
 
                            for (int i = 0; i < nodeCountPerWorkItem; ++i) {
                                if (nd_item.get_global_id() * nodeCountPerWorkItem + i > numberOfNodes - 1) {
                                    break;
                                }
-                               std::size_t index =
+                               d_type::int_t index =
                                        numberOfNodes - 1 - nd_item.get_global_id() * nodeCountPerWorkItem - i;
 
 
-                               std::size_t bodyInNode = BODY_OF_NODE[index];
+                               d_type::int_t bodyInNode = BODY_OF_NODE[index];
 
 
                                if (SUM_MASSES[index] != 0) {
@@ -460,7 +463,7 @@ void BarnesHutOctree::computeCenterOfMass_CPU(queue &queue, buffer<double> &curr
 
                                    bool allReady = true;
                                    for (int octant = 0; octant < 8; ++octant) {
-                                       std::size_t octantID = OCTANTS[index + octant * storageSize];
+                                       d_type::int_t octantID = OCTANTS[index + octant * storageSize];
 
                                        if (!((SUM_MASSES[octantID] != 0) ||
                                              ((NODE_IS_LEAF[octantID] == 1) && BODY_OF_NODE[octantID] == N))) {
@@ -476,7 +479,7 @@ void BarnesHutOctree::computeCenterOfMass_CPU(queue &queue, buffer<double> &curr
                                        double centerMassY = 0;
                                        double centerMassZ = 0;
                                        for (int octant = 0; octant < 8; ++octant) {
-                                           std::size_t octantID = OCTANTS[index + octant * storageSize];
+                                           d_type::int_t octantID = OCTANTS[index + octant * storageSize];
                                            centerMassX += CENTER_OF_MASS_X[octantID];
                                            centerMassY += CENTER_OF_MASS_Y[octantID];
                                            centerMassZ += CENTER_OF_MASS_Z[octantID];
@@ -501,11 +504,11 @@ void BarnesHutOctree::computeCenterOfMass_CPU(queue &queue, buffer<double> &curr
                            bool allNodesProcessed = false;
                            while (!allNodesProcessed) {
                                allNodesProcessed = true;
-                               for (std::size_t i = nd_item.get_global_id() * nodeCountPerWorkItem; i < nextID; ++i) {
-                                   std::size_t index = NODES_TO_PROCESS[i];
+                               for (d_type::int_t i = nd_item.get_global_id() * nodeCountPerWorkItem; i < nextID; ++i) {
+                                   d_type::int_t index = NODES_TO_PROCESS[i];
 
 
-                                   std::size_t bodyInNode = BODY_OF_NODE[index];
+                                   d_type::int_t bodyInNode = BODY_OF_NODE[index];
 
 
                                    if (SUM_MASSES[index] != 0) {
@@ -522,7 +525,7 @@ void BarnesHutOctree::computeCenterOfMass_CPU(queue &queue, buffer<double> &curr
 
                                        bool allReady = true;
                                        for (int octant = 0; octant < 8; ++octant) {
-                                           std::size_t octantID = OCTANTS[index + octant * storageSize];
+                                           d_type::int_t octantID = OCTANTS[index + octant * storageSize];
 
                                            if (!((SUM_MASSES[octantID] != 0) ||
                                                  ((NODE_IS_LEAF[octantID] == 1) && BODY_OF_NODE[octantID] == N))) {
@@ -538,7 +541,7 @@ void BarnesHutOctree::computeCenterOfMass_CPU(queue &queue, buffer<double> &curr
                                            double centerMassY = 0;
                                            double centerMassZ = 0;
                                            for (int octant = 0; octant < 8; ++octant) {
-                                               std::size_t octantID = OCTANTS[index + octant * storageSize];
+                                               d_type::int_t octantID = OCTANTS[index + octant * storageSize];
                                                centerMassX += CENTER_OF_MASS_X[octantID];
                                                centerMassY += CENTER_OF_MASS_Y[octantID];
                                                centerMassZ += CENTER_OF_MASS_Z[octantID];
@@ -564,25 +567,25 @@ void BarnesHutOctree::computeCenterOfMass_CPU(queue &queue, buffer<double> &curr
 void BarnesHutOctree::sortBodies(queue &queue, buffer<double> &current_positions_x, buffer<double> &current_positions_y,
                                  buffer<double> &current_positions_z) {
 
-    std::size_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
+    d_type::int_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
 
     queue.submit([&](handler &h) {
         accessor<int> NODE_IS_LEAF(nodeIsLeaf, h);
         accessor<double> MIN_X(min_x_values, h);
         accessor<double> MIN_Y(min_y_values, h);
         accessor<double> MIN_Z(min_z_values, h);
-        accessor<std::size_t> OCTANTS(octants, h);
-        accessor<std::size_t> BODY_COUNT_NODE(bodyCountNode, h);
+        accessor<d_type::int_t> OCTANTS(octants, h);
+        accessor<d_type::int_t> BODY_COUNT_NODE(bodyCountNode, h);
         accessor<double> EDGE_LENGTHS(edgeLengths, h);
         accessor<double> POS_X(current_positions_x, h);
         accessor<double> POS_Y(current_positions_y, h);
         accessor<double> POS_Z(current_positions_z, h);
-        accessor<std::size_t> SORTED_BODIES(sortedBodiesInOrder, h);
+        accessor<d_type::int_t> SORTED_BODIES(sortedBodiesInOrder, h);
 
 
         h.parallel_for(sycl::range<1>(configuration::numberOfBodies), [=](auto &i) {
-            std::size_t insertionIndex = 0;
-            std::size_t currentNode = 0;
+            d_type::int_t insertionIndex = 0;
+            d_type::int_t currentNode = 0;
             bool indexDetermined = false;
 
             while (!indexDetermined) {
@@ -591,7 +594,7 @@ void BarnesHutOctree::sortBodies(queue &queue, buffer<double> &current_positions
                     indexDetermined = true;
                 } else {
                     // step down in the tree and count the amount of bodies that have to be inserted "left" of this body
-                    std::size_t octantID;
+                    d_type::int_t octantID;
                     double parentMin_x = MIN_X[currentNode];
                     double parentMin_y = MIN_Y[currentNode];
                     double parentMin_z = MIN_Z[currentNode];
@@ -602,10 +605,10 @@ void BarnesHutOctree::sortBodies(queue &queue, buffer<double> &current_positions
                     bool backPart = POS_Z[i] < parentMin_z + (parentEdgeLength / 2);
 
                     // interpret as binary and convert into decimal. octantIndex = 0 would correspond to the lowerSW node octantIndex = 7 would be the upperNE node
-                    std::size_t octantIndex = ((int) upperPart) * 4 + ((int) rightPart) * 2 + ((int) backPart) * 1;
+                    d_type::int_t octantIndex = ((int) upperPart) * 4 + ((int) rightPart) * 2 + ((int) backPart) * 1;
 
                     // find start index of octant type
-                    std::size_t octantAddress = octantIndex * storageSize;
+                    d_type::int_t octantAddress = octantIndex * storageSize;
 
                     // get octant of current Node
                     octantAddress = octantAddress + currentNode;
@@ -613,7 +616,7 @@ void BarnesHutOctree::sortBodies(queue &queue, buffer<double> &current_positions
                     octantID = OCTANTS[octantAddress];
 
 
-                    for (std::size_t j = 0; j < octantIndex; ++j) {
+                    for (d_type::int_t j = 0; j < octantIndex; ++j) {
                         // all bodies in the octants "left" to the octant of this body will get stored "left" of the current body
                         insertionIndex += BODY_COUNT_NODE[OCTANTS[j * storageSize + currentNode]];
                     }
