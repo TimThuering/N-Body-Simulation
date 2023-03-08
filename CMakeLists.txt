@@ -22,7 +22,7 @@ include_directories(src/simulationBackend)
 include_directories(src/simulationBackend/BarnesHutTreeAlgorithms)
 
 # uncomment for debugging
- #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-limit-debug-info")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-limit-debug-info")
 
 
 add_executable(N_Body_Simulation
@@ -76,9 +76,15 @@ add_executable(InputParserTest
 
 add_executable(BarnesHutTest
         tests/BarnesHutTest.cpp
-#        src/simulationBackend/nBodyAlgorithm.cpp
-#        src/simulationBackend/BarnesHutAlgorithm.cpp
-#        src/utility/TimeMeasurement.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.cpp src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.hpp src/utility/Configuration.hpp src/utility/Configuration.cpp
+        src/simulationBackend/nBodyAlgorithm.cpp
+        src/simulationBackend/BarnesHutAlgorithm.cpp
+        src/utility/TimeMeasurement.cpp
+        src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.cpp
+        src/simulationBackend/BarnesHutTreeAlgorithms/BarnesHutOctree.hpp
+        src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSubtrees.cpp
+        src/simulationBackend/BarnesHutTreeAlgorithms/ParallelOctreeTopDownSynchronized.cpp
+        src/utility/Configuration.hpp
+        src/utility/Configuration.cpp
         )
 
 
