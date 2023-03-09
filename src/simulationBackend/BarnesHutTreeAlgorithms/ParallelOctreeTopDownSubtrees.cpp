@@ -385,8 +385,8 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
                                     }
                                     // release the lock
                                     nd_item.mem_fence(access::fence_space::global_and_local);
-                                    atomicNodeIsLockedAccessor.fetch_sub(1, memory_order::acq_rel,
-                                                                         memory_scope::device);
+                                    atomicNodeIsLockedAccessor.store(0, memoryOrderStore,
+                                                                     memory_scope::device);
                                 }
                             } else {
                                 // the current node is not a leaf node, i.e. it has 8 children
@@ -775,8 +775,7 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
                                 }
                                 // release the lock
                                 nd_item.mem_fence(access::fence_space::global_and_local);
-                                atomicNodeIsLockedAccessor.fetch_sub(1, memory_order::acq_rel,
-                                                                     memory_scope::device);
+                                atomicNodeIsLockedAccessor.store(0, memoryOrderStore, memory_scope::device);
                             }
                         } else {
                             // the current node is not a leaf node, i.e. it has 8 children

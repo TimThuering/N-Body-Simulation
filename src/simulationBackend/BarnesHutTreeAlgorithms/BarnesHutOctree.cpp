@@ -232,26 +232,22 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
                                               buffer<double> &current_positions_y,
                                               buffer<double> &current_positions_z,
                                               buffer<double> &masses) {
-
     prepareCenterOfMass(queue, current_positions_x, current_positions_y, current_positions_z, masses);
 
     host_accessor<d_type::int_t> NUM_NODES(nextFreeNodeID);
     d_type::int_t numberOfNodes = NUM_NODES[0];
-
     d_type::int_t N = configuration::numberOfBodies;
     d_type::int_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
 
     d_type::int_t nodeCountPerWorkItem;
-    if (numberOfNodes > configuration::barnes_hut_algorithm::octreeWorkItemCount) {
-        nodeCountPerWorkItem = std::ceil(
-                (double) numberOfNodes /
-                (double) configuration::barnes_hut_algorithm::octreeWorkItemCount);
+    if (numberOfNodes > configuration::barnes_hut_algorithm::centerOfMassWorkItemCount) {
+        nodeCountPerWorkItem = std::ceil((double) numberOfNodes /
+                                         (double) configuration::barnes_hut_algorithm::centerOfMassWorkItemCount);
     } else {
         nodeCountPerWorkItem = 1;
     }
 
-    d_type::int_t workItemCount = configuration::barnes_hut_algorithm::octreeWorkItemCount;
-
+    d_type::int_t workItemCount = configuration::barnes_hut_algorithm::centerOfMassWorkItemCount;
 
     queue.submit([&](handler &h) {
         accessor<double> SUM_MASSES(sumOfMasses, h);
@@ -264,10 +260,8 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
         accessor<d_type::int_t> NODES_TO_PROCESS(nodesToProcessCenterOfMass, h);
         accessor<d_type::int_t> BODY_COUNT_NODE(bodyCountNode, h);
 
-
         h.parallel_for(nd_range<1>(range<1>(workItemCount), range<1>(workItemCount)), [=](auto &nd_item) {
-
-            d_type::int_t nextID = nd_item.get_global_id() * nodeCountPerWorkItem;
+            d_type::int_t nextID = nd_item.get_global_id() * nodeCountPerWorkItem; // start index for cached nodes
 
             for (d_type::int_t i = nd_item.get_global_id(); i < numberOfNodes; i += workItemCount) {
 
@@ -288,7 +282,7 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
 
                 if (NODE_IS_LEAF[index] == 0) {
 
-                    bool allReady = true;
+                    bool allReady = true; // check if all children of the node are already processed
                     for (int octant = 0; octant < 8; ++octant) {
                         d_type::int_t octantID = OCTANTS[index + octant * storageSize];
 
@@ -329,7 +323,7 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
                 }
             }
 
-
+            // iterate over all nodes that have not been processed yet
             bool allNodesProcessed = false;
             while (!allNodesProcessed) {
                 allNodesProcessed = true;
@@ -337,7 +331,6 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
                     d_type::int_t index = NODES_TO_PROCESS[i];
 
                     d_type::int_t bodyInNode = BODY_OF_NODE[index];
-
 
                     if (SUM_MASSES[index] != 0) {
                         // node already processed
@@ -350,7 +343,6 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
                     }
 
                     if (NODE_IS_LEAF[index] == 0) {
-
                         bool allReady = true;
                         for (int octant = 0; octant < 8; ++octant) {
                             d_type::int_t octantID = OCTANTS[index + octant * storageSize];
@@ -363,7 +355,6 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
                         }
 
                         if (allReady) {
-
                             double sumMasses = 0;
                             double centerMassX = 0;
                             double centerMassY = 0;
@@ -400,26 +391,22 @@ void BarnesHutOctree::computeCenterOfMass_GPU(queue &queue, buffer<double> &curr
 void BarnesHutOctree::computeCenterOfMass_CPU(queue &queue, buffer<double> &current_positions_x,
                                               buffer<double> &current_positions_y, buffer<double> &current_positions_z,
                                               buffer<double> &masses) {
-
-
     prepareCenterOfMass(queue, current_positions_x, current_positions_y, current_positions_z, masses);
 
     host_accessor<d_type::int_t> NUM_NODES(nextFreeNodeID);
     d_type::int_t numberOfNodes = NUM_NODES[0];
-
     d_type::int_t N = configuration::numberOfBodies;
     d_type::int_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
 
     d_type::int_t nodeCountPerWorkItem;
-    if (numberOfNodes > configuration::barnes_hut_algorithm::octreeWorkItemCount) {
-        nodeCountPerWorkItem = std::ceil(
-                (double) numberOfNodes /
-                (double) configuration::barnes_hut_algorithm::octreeWorkItemCount);
+    if (numberOfNodes > configuration::barnes_hut_algorithm::centerOfMassWorkItemCount) {
+        nodeCountPerWorkItem = std::ceil((double) numberOfNodes /
+                                         (double) configuration::barnes_hut_algorithm::centerOfMassWorkItemCount);
     } else {
         nodeCountPerWorkItem = 1;
     }
 
-    d_type::int_t workItemCount = configuration::barnes_hut_algorithm::octreeWorkItemCount;
+    d_type::int_t workItemCount = configuration::barnes_hut_algorithm::centerOfMassWorkItemCount;
 
 
     queue.submit([&](handler &h) {
@@ -431,135 +418,131 @@ void BarnesHutOctree::computeCenterOfMass_CPU(queue &queue, buffer<double> &curr
         accessor<d_type::int_t> OCTANTS(octants, h);
         accessor<d_type::int_t> BODY_OF_NODE(bodyOfNode, h);
         accessor<d_type::int_t> NODES_TO_PROCESS(nodesToProcessCenterOfMass, h);
+        accessor<d_type::int_t> BODY_COUNT_NODE(bodyCountNode, h);
 
 
-        h.parallel_for(nd_range<1>(range<1>(workItemCount), range<1>(workItemCount)),
-                       [=](auto &nd_item) {
+        h.parallel_for(nd_range<1>(range<1>(workItemCount), range<1>(workItemCount)), [=](auto &nd_item) {
+            d_type::int_t nextID = nd_item.get_global_id() * nodeCountPerWorkItem;
 
-                           d_type::int_t nextID = nd_item.get_global_id() * nodeCountPerWorkItem;
+            for (int i = 0; i < nodeCountPerWorkItem; ++i) {
+                if (nd_item.get_global_id() * nodeCountPerWorkItem + i > numberOfNodes - 1) {
+                    break;
+                }
 
-                           for (int i = 0; i < nodeCountPerWorkItem; ++i) {
-                               if (nd_item.get_global_id() * nodeCountPerWorkItem + i > numberOfNodes - 1) {
-                                   break;
-                               }
-                               d_type::int_t index =
-                                       numberOfNodes - 1 - nd_item.get_global_id() * nodeCountPerWorkItem - i;
+                // get next node assigned to this work-item
+                d_type::int_t index = numberOfNodes - 1 - nd_item.get_global_id() * nodeCountPerWorkItem - i;
+                d_type::int_t bodyInNode = BODY_OF_NODE[index];
 
+                if (SUM_MASSES[index] != 0) {
+                    // node already processed
+                    continue;
+                }
 
-                               d_type::int_t bodyInNode = BODY_OF_NODE[index];
+                if ((NODE_IS_LEAF[index] == 1) && bodyInNode == N) {
+                    // empty node
+                    continue;
+                }
 
+                if (NODE_IS_LEAF[index] == 0) {
+                    bool allReady = true;
+                    for (int octant = 0; octant < 8; ++octant) {
+                        d_type::int_t octantID = OCTANTS[index + octant * storageSize];
 
-                               if (SUM_MASSES[index] != 0) {
-                                   // node already processed
-                                   continue;
-                               }
+                        if (!((SUM_MASSES[octantID] != 0) ||
+                              ((NODE_IS_LEAF[octantID] == 1) && BODY_OF_NODE[octantID] == N))) {
+                            allReady = false;
+                            break;
+                        }
+                    }
 
-                               if ((NODE_IS_LEAF[index] == 1) && bodyInNode == N) {
-                                   // empty node
-                                   continue;
-                               }
+                    if (allReady) {
+                        double sumMasses = 0;
+                        double centerMassX = 0;
+                        double centerMassY = 0;
+                        double centerMassZ = 0;
+                        d_type::int_t bodyCount = 0;
+                        for (int octant = 0; octant < 8; ++octant) {
+                            d_type::int_t octantID = OCTANTS[index + octant * storageSize];
+                            centerMassX += CENTER_OF_MASS_X[octantID];
+                            centerMassY += CENTER_OF_MASS_Y[octantID];
+                            centerMassZ += CENTER_OF_MASS_Z[octantID];
+                            sumMasses += SUM_MASSES[octantID];
+                            bodyCount += BODY_COUNT_NODE[octantID];
+                        }
+                        BODY_COUNT_NODE[index] = bodyCount;
+                        CENTER_OF_MASS_X[index] = centerMassX;
+                        CENTER_OF_MASS_Y[index] = centerMassY;
+                        CENTER_OF_MASS_Z[index] = centerMassZ;
+                        nd_item.mem_fence(access::fence_space::global_and_local);
+                        SUM_MASSES[index] = sumMasses;
 
-                               if (NODE_IS_LEAF[index] == 0) {
+                    } else {
+                        // add node to nodes which have to processed.
+                        NODES_TO_PROCESS[nextID] = index;
+                        nextID += 1;
+                    }
+                }
+            }
 
-                                   bool allReady = true;
-                                   for (int octant = 0; octant < 8; ++octant) {
-                                       d_type::int_t octantID = OCTANTS[index + octant * storageSize];
+            bool allNodesProcessed = false;
+            // iterate over all nodes that still have to be processed
+            while (!allNodesProcessed) {
+                allNodesProcessed = true;
+                for (d_type::int_t i = nd_item.get_global_id() * nodeCountPerWorkItem; i < nextID; ++i) {
+                    d_type::int_t index = NODES_TO_PROCESS[i];
 
-                                       if (!((SUM_MASSES[octantID] != 0) ||
-                                             ((NODE_IS_LEAF[octantID] == 1) && BODY_OF_NODE[octantID] == N))) {
-                                           allReady = false;
-                                           break;
-                                       }
-                                   }
+                    d_type::int_t bodyInNode = BODY_OF_NODE[index];
 
-                                   if (allReady) {
+                    if (SUM_MASSES[index] != 0) {
+                        // node already processed
+                        continue;
+                    }
 
-                                       double sumMasses = 0;
-                                       double centerMassX = 0;
-                                       double centerMassY = 0;
-                                       double centerMassZ = 0;
-                                       for (int octant = 0; octant < 8; ++octant) {
-                                           d_type::int_t octantID = OCTANTS[index + octant * storageSize];
-                                           centerMassX += CENTER_OF_MASS_X[octantID];
-                                           centerMassY += CENTER_OF_MASS_Y[octantID];
-                                           centerMassZ += CENTER_OF_MASS_Z[octantID];
-                                           sumMasses += SUM_MASSES[octantID];
-                                       }
-                                       CENTER_OF_MASS_X[index] = centerMassX;
-                                       CENTER_OF_MASS_Y[index] = centerMassY;
-                                       CENTER_OF_MASS_Z[index] = centerMassZ;
-                                       nd_item.mem_fence(access::fence_space::global_and_local);
-                                       SUM_MASSES[index] = sumMasses;
+                    if ((NODE_IS_LEAF[index] == 1) && bodyInNode == N) {
+                        // empty node
+                        continue;
+                    }
 
-                                   } else {
-                                       NODES_TO_PROCESS[nextID] = index;
-                                       nextID += 1;
-                                   }
-                               }
+                    if (NODE_IS_LEAF[index] == 0) {
+                        bool allReady = true;
+                        for (int octant = 0; octant < 8; ++octant) {
+                            d_type::int_t octantID = OCTANTS[index + octant * storageSize];
 
+                            if (!((SUM_MASSES[octantID] != 0) ||
+                                  ((NODE_IS_LEAF[octantID] == 1) && BODY_OF_NODE[octantID] == N))) {
+                                allReady = false;
+                                break;
+                            }
+                        }
 
-                           }
+                        if (allReady) {
+                            double sumMasses = 0;
+                            double centerMassX = 0;
+                            double centerMassY = 0;
+                            double centerMassZ = 0;
+                            d_type::int_t bodyCount = 0;
+                            for (int octant = 0; octant < 8; ++octant) {
+                                d_type::int_t octantID = OCTANTS[index + octant * storageSize];
+                                centerMassX += CENTER_OF_MASS_X[octantID];
+                                centerMassY += CENTER_OF_MASS_Y[octantID];
+                                centerMassZ += CENTER_OF_MASS_Z[octantID];
+                                sumMasses += SUM_MASSES[octantID];
+                                bodyCount += BODY_COUNT_NODE[octantID];
+                            }
+                            BODY_COUNT_NODE[index] = bodyCount;
+                            CENTER_OF_MASS_X[index] = centerMassX;
+                            CENTER_OF_MASS_Y[index] = centerMassY;
+                            CENTER_OF_MASS_Z[index] = centerMassZ;
+                            nd_item.mem_fence(access::fence_space::global_and_local);
+                            SUM_MASSES[index] = sumMasses;
 
-
-                           bool allNodesProcessed = false;
-                           while (!allNodesProcessed) {
-                               allNodesProcessed = true;
-                               for (d_type::int_t i = nd_item.get_global_id() * nodeCountPerWorkItem; i < nextID; ++i) {
-                                   d_type::int_t index = NODES_TO_PROCESS[i];
-
-
-                                   d_type::int_t bodyInNode = BODY_OF_NODE[index];
-
-
-                                   if (SUM_MASSES[index] != 0) {
-                                       // node already processed
-                                       continue;
-                                   }
-
-                                   if ((NODE_IS_LEAF[index] == 1) && bodyInNode == N) {
-                                       // empty node
-                                       continue;
-                                   }
-
-                                   if (NODE_IS_LEAF[index] == 0) {
-
-                                       bool allReady = true;
-                                       for (int octant = 0; octant < 8; ++octant) {
-                                           d_type::int_t octantID = OCTANTS[index + octant * storageSize];
-
-                                           if (!((SUM_MASSES[octantID] != 0) ||
-                                                 ((NODE_IS_LEAF[octantID] == 1) && BODY_OF_NODE[octantID] == N))) {
-                                               allReady = false;
-                                               break;
-                                           }
-                                       }
-
-                                       if (allReady) {
-
-                                           double sumMasses = 0;
-                                           double centerMassX = 0;
-                                           double centerMassY = 0;
-                                           double centerMassZ = 0;
-                                           for (int octant = 0; octant < 8; ++octant) {
-                                               d_type::int_t octantID = OCTANTS[index + octant * storageSize];
-                                               centerMassX += CENTER_OF_MASS_X[octantID];
-                                               centerMassY += CENTER_OF_MASS_Y[octantID];
-                                               centerMassZ += CENTER_OF_MASS_Z[octantID];
-                                               sumMasses += SUM_MASSES[octantID];
-                                           }
-                                           CENTER_OF_MASS_X[index] = centerMassX;
-                                           CENTER_OF_MASS_Y[index] = centerMassY;
-                                           CENTER_OF_MASS_Z[index] = centerMassZ;
-                                           nd_item.mem_fence(access::fence_space::global_and_local);
-                                           SUM_MASSES[index] = sumMasses;
-
-                                       } else {
-                                           allNodesProcessed = false;
-                                       }
-                                   }
-                               }
-                           }
-                       });
+                        } else {
+                            allNodesProcessed = false;
+                        }
+                    }
+                }
+            }
+        });
     }).wait();
 
 }

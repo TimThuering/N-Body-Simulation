@@ -97,14 +97,11 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
 
     // build octree in parallel
     queue.submit([&](handler &h) {
-
-
         accessor<int> NODE_LOCKED(nodeIsLocked, h);
         accessor<int> NODE_IS_LEAF(nodeIsLeaf, h);
         accessor<double> POS_X(current_positions_x, h);
         accessor<double> POS_Y(current_positions_y, h);
         accessor<double> POS_Z(current_positions_z, h);
-        accessor<double> MASSES(masses, h);
         accessor<d_type::int_t> OCTANTS(octants, h);
         accessor<double> EDGE_LENGTHS(edgeLengths, h);
         accessor<double> MIN_X(min_x_values, h);
@@ -117,7 +114,6 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
         accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
         accessor<d_type::int_t> NEXT_FREE_NODE_ID(nextFreeNodeID, h);
         accessor<d_type::int_t> BODY_COUNT_NODE(bodyCountNode, h);
-
 
         // determine the maximum body count per work-item
         d_type::int_t bodyCountPerWorkItem;
@@ -178,39 +174,7 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                                                 // the leaf node is empty --> Insert the current body into the current node and set the flag to continue with next body
 
                                                 BODY_OF_NODE[currentNode] = i;
-
-                                                // update sum masses and center of mass
-//                                                atomic_ref<double, memory_order::relaxed, memory_scope::device,
-//                                                        access::address_space::global_space> atomicMasses(
-//                                                        SUM_MASSES[currentNode]);
-//
-//                                                atomic_ref<double, memory_order::relaxed, memory_scope::device,
-//                                                        access::address_space::global_space> atomicCenterMass_X(
-//                                                        CENTER_OF_MASS_X[currentNode]);
-//
-//                                                atomic_ref<double, memory_order::relaxed, memory_scope::device,
-//                                                        access::address_space::global_space> atomicCenterMass_Y(
-//                                                        CENTER_OF_MASS_Y[currentNode]);
-//
-//                                                atomic_ref<double, memory_order::relaxed, memory_scope::device,
-//                                                        access::address_space::global_space> atomicCenterMass_Z(
-//                                                        CENTER_OF_MASS_Z[currentNode]);
-//
-//                                                atomicMasses.fetch_add(MASSES[i], memory_order::relaxed,
-//                                                                       memory_scope::device);
-//                                                atomicCenterMass_X.fetch_add(POS_X[i] * MASSES[i],
-//                                                                             memory_order::relaxed,
-//                                                                             memory_scope::device);
-//                                                atomicCenterMass_Y.fetch_add(POS_Y[i] * MASSES[i],
-//                                                                             memory_order::relaxed,
-//                                                                             memory_scope::device);
-//                                                atomicCenterMass_Z.fetch_add(POS_Z[i] * MASSES[i],
-//                                                                             memory_order::relaxed,
-//                                                                             memory_scope::device);
-
-
                                                 nodeInserted = true;
-                                                //sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
                                                 nd_item.mem_fence(access::fence_space::global_and_local);
                                             } else {
                                                 // the leaf node already contains a body --> split the node and insert old body
@@ -344,48 +308,15 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                                                 BODY_OF_NODE[currentNode] = N;
 
 
-//                                                atomic_ref<double, memory_order::relaxed, memory_scope::device,
-//                                                        access::address_space::global_space> atomicMasses(
-//                                                        SUM_MASSES[octantID]);
-//
-//                                                atomic_ref<double, memory_order::relaxed, memory_scope::device,
-//                                                        access::address_space::global_space> atomicCenterMass_X(
-//                                                        CENTER_OF_MASS_X[octantID]);
-//
-//                                                atomic_ref<double, memory_order::relaxed, memory_scope::device,
-//                                                        access::address_space::global_space> atomicCenterMass_Y(
-//                                                        CENTER_OF_MASS_Y[octantID]);
-//
-//                                                atomic_ref<double, memory_order::relaxed, memory_scope::device,
-//                                                        access::address_space::global_space> atomicCenterMass_Z(
-//                                                        CENTER_OF_MASS_Z[octantID]);
-//
-//
-//                                                atomicMasses.fetch_add(MASSES[bodyIDinNode], memory_order::relaxed,
-//                                                                       memory_scope::device);
-//                                                atomicCenterMass_X.fetch_add(POS_X[bodyIDinNode] * MASSES[bodyIDinNode],
-//                                                                             memory_order::relaxed,
-//                                                                             memory_scope::device);
-//                                                atomicCenterMass_Y.fetch_add(POS_Y[bodyIDinNode] * MASSES[bodyIDinNode],
-//                                                                             memory_order::relaxed,
-//                                                                             memory_scope::device);
-//                                                atomicCenterMass_Z.fetch_add(POS_Z[bodyIDinNode] * MASSES[bodyIDinNode],
-//                                                                             memory_order::relaxed,
-//                                                                             memory_scope::device);
-
-
-                                                //sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
                                                 nd_item.mem_fence(access::fence_space::global_and_local);
                                                 // mark the current node as a non leaf node
                                                 atomicNodeIsLeafAccessor.store(0, memoryOrderStore,
                                                                                memory_scope::device);
                                             }
-                                            // sycl::atomic_fence(memory_order::acq_rel, memory_scope::device);
-                                            //nd_item.mem_fence(access::fence_space::global_and_local);
                                         }
                                         // release the lock
                                         nd_item.mem_fence(access::fence_space::global_and_local);
-                                        atomicNodeIsLockedAccessor.fetch_sub(1, memory_order::acq_rel,
+                                        atomicNodeIsLockedAccessor.store(0, memoryOrderStore,
                                                                              memory_scope::device);
                                     }
                                 } else {
@@ -413,32 +344,6 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                                     octantAddress = octantAddress + currentNode;
 
                                     octantID = OCTANTS[octantAddress];
-
-                                    // update sum masses and center of mass of this node, since the current body will be inserted in one of the children
-//                                    atomic_ref<double, memory_order::relaxed, memory_scope::device,
-//                                            access::address_space::global_space> atomicMasses(
-//                                            SUM_MASSES[currentNode]);
-//
-//                                    atomic_ref<double, memory_order::relaxed, memory_scope::device,
-//                                            access::address_space::global_space> atomicCenterMass_X(
-//                                            CENTER_OF_MASS_X[currentNode]);
-//
-//                                    atomic_ref<double, memory_order::relaxed, memory_scope::device,
-//                                            access::address_space::global_space> atomicCenterMass_Y(
-//                                            CENTER_OF_MASS_Y[currentNode]);
-//
-//                                    atomic_ref<double, memory_order::relaxed, memory_scope::device,
-//                                            access::address_space::global_space> atomicCenterMass_Z(
-//                                            CENTER_OF_MASS_Z[currentNode]);
-//
-//
-//                                    atomicMasses.fetch_add(MASSES[i], memory_order::relaxed, memory_scope::device);
-//                                    atomicCenterMass_X.fetch_add(POS_X[i] * MASSES[i], memory_order::relaxed,
-//                                                                 memory_scope::device);
-//                                    atomicCenterMass_Y.fetch_add(POS_Y[i] * MASSES[i], memory_order::relaxed,
-//                                                                 memory_scope::device);
-//                                    atomicCenterMass_Z.fetch_add(POS_Z[i] * MASSES[i], memory_order::relaxed,
-//                                                                 memory_scope::device);
 
                                     currentNode = octantID;
                                     currentDepth += 1;
@@ -477,134 +382,4 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
     if (configuration::barnes_hut_algorithm::sortBodies) {
         timer.addTimeToSequence("Sort bodies", std::chrono::duration<double, std::milli>(end - endCenterOfMass).count());
     }
-
-//    host_accessor CX(massCenters_x);
-//    host_accessor CY(massCenters_y);
-//    host_accessor CZ(massCenters_z
-//    );
-//    std::cout << MASSES[0] << std::endl;
-//    std::cout << CX[0] << std::endl;
-//    std::cout << CY[0] << std::endl;
-//    std::cout << CZ[0] << std::endl;
-
 }
-
-void ParallelOctreeTopDownSynchronized::computeCenterOfGravity(queue &queue, buffer<double> &current_positions_x,
-                                                               buffer<double> &current_positions_y,
-                                                               buffer<double> &current_positions_z,
-                                                               buffer<double> &masses) {
-    host_accessor<d_type::int_t> NUM_NODES(nextFreeNodeID);
-    d_type::int_t numberOfNodes = NUM_NODES[0];
-
-    d_type::int_t N = configuration::numberOfBodies;
-    d_type::int_t storageSize = configuration::barnes_hut_algorithm::storageSizeParameter;
-
-
-    d_type::int_t nodeCountPerWorkItem;
-    if (numberOfNodes > configuration::barnes_hut_algorithm::octreeWorkItemCount) {
-        nodeCountPerWorkItem = std::ceil(
-                (double) numberOfNodes /
-                (double) configuration::barnes_hut_algorithm::octreeWorkItemCount);
-    } else {
-        nodeCountPerWorkItem = 1;
-    }
-
-    d_type::int_t workItemCount = configuration::barnes_hut_algorithm::octreeWorkItemCount;
-
-
-    queue.submit([&](handler &h) {
-        accessor<double> SUM_MASSES(sumOfMasses, h);
-        accessor<double> CENTER_OF_MASS_X(massCenters_x, h);
-        accessor<double> CENTER_OF_MASS_Y(massCenters_y, h);
-        accessor<double> CENTER_OF_MASS_Z(massCenters_z, h);
-        accessor<double> MASSES(masses, h);
-        accessor<double> POS_X(current_positions_x, h);
-        accessor<double> POS_Y(current_positions_y, h);
-        accessor<double> POS_Z(current_positions_z, h);
-        accessor<int> NODE_IS_LEAF(nodeIsLeaf, h);
-        accessor<d_type::int_t> OCTANTS(octants, h);
-        accessor<d_type::int_t> BODY_OF_NODE(bodyOfNode, h);
-
-        h.parallel_for(nd_range<1>(range<1>(workItemCount), range<1>(workItemCount)),
-                       [=](auto &nd_item) {
-
-                           bool allNodesProcessed = false;
-                           while (!allNodesProcessed) {
-                               allNodesProcessed = true;
-                               //start from the back so nodes that were created last (lower level) come first.
-
-//                               for (int i = 0; i < nodeCountPerWorkItem; ++i)  {
-                               for (d_type::int_t i = nd_item.get_global_id(); i < numberOfNodes; i += workItemCount) {
-                                   d_type::int_t index = numberOfNodes - 1 - i;
-
-
-//                                   if (nd_item.get_global_id() * nodeCountPerWorkItem + i > numberOfNodes - 1) {
-//                                       break;
-//                                   }
-//                                   d_type::int_t index = numberOfNodes - 1 - nd_item.get_global_id() * nodeCountPerWorkItem - i;
-
-                                   d_type::int_t bodyOfNode = BODY_OF_NODE[index];
-
-                                   if (SUM_MASSES[index] != 0) {
-                                       // node already processed
-                                       continue;
-                                   }
-                                   if ((NODE_IS_LEAF[index] == 1) && bodyOfNode == N) {
-                                       // empty node
-                                       continue;
-                                   }
-
-                                   if ((NODE_IS_LEAF[index] == 1) && bodyOfNode != N) {
-                                       // Node is a leaf node, and it contains a body
-                                       CENTER_OF_MASS_X[index] = POS_X[bodyOfNode] * MASSES[bodyOfNode];
-                                       CENTER_OF_MASS_Y[index] = POS_Y[bodyOfNode] * MASSES[bodyOfNode];
-                                       CENTER_OF_MASS_Z[index] = POS_Z[bodyOfNode] * MASSES[bodyOfNode];
-                                       nd_item.mem_fence(access::fence_space::global_and_local);
-                                       SUM_MASSES[index] = MASSES[bodyOfNode];
-
-                                   } else if (NODE_IS_LEAF[index] == 0) {
-
-                                       bool allReady = true;
-                                       for (int octant = 0; octant < 8; ++octant) {
-                                           d_type::int_t octantID = OCTANTS[index + octant * storageSize];
-
-                                           if (!((SUM_MASSES[octantID] != 0) ||
-                                                 ((NODE_IS_LEAF[octantID] == 1) && BODY_OF_NODE[octantID] == N))) {
-                                               allReady = false;
-                                           }
-                                       }
-                                       if (allReady) {
-
-                                           double sumMasses = 0;
-                                           for (int octant = 0; octant < 8; ++octant) {
-                                               d_type::int_t octantID = OCTANTS[index + octant * storageSize];
-
-                                               CENTER_OF_MASS_X[index] += CENTER_OF_MASS_X[octantID];
-                                               CENTER_OF_MASS_Y[index] += CENTER_OF_MASS_Y[octantID];
-                                               CENTER_OF_MASS_Z[index] += CENTER_OF_MASS_Z[octantID];
-                                               sumMasses += SUM_MASSES[octantID];
-
-                                           }
-                                           nd_item.mem_fence(access::fence_space::global_and_local);
-                                           SUM_MASSES[index] = sumMasses;
-
-                                       } else {
-                                           allNodesProcessed = false;
-                                       }
-
-
-                                   }
-
-//                                   nd_item.barrier();
-
-
-                               }
-//                               nd_item.barrier();
-                           }
-
-
-                       });
-    }).wait();
-
-}
-

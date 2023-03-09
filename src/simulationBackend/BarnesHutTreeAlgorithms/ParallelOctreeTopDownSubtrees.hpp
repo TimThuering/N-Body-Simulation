@@ -55,6 +55,11 @@ public:
     void prepareSubtrees(queue &queue, buffer<d_type::int_t> &bodyCountSubtree, buffer<d_type::int_t> &subtrees,
                          d_type::int_t nodeCount);
 
+    /*
+     * This function sorts all bodies according to their subtrees. This step is needed for buildSubtrees(). It ensures
+     * that all bodies that will be assigned to one work-group (i.e. belong to the same subtree) are stored right next to each
+     * other. The start index of these bodies will be stored in bodiesOfSubtreeStartIndex.
+     */
     void sortBodiesForSubtrees(queue &queue, buffer<d_type::int_t> &bodyCountSubtree, buffer<d_type::int_t> &subtrees,
                                buffer<d_type::int_t> &bodiesOfSubtreeStartIndex);
 
