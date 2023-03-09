@@ -7,12 +7,14 @@ double configuration::epsilon2 = std::pow(10, -22);
 bool configuration::compute_energy = false;
 bool configuration::use_GPUs = true;
 
-int configuration::naive_algorithm::tileSizeNaiveAlg = 64;
+int configuration::naive_algorithm::blockSize = 64;
+bool configuration::naive_algorithm::GPU_Kernel = true;
 
 d_type::int_t configuration::barnes_hut_algorithm::storageSizeParameter = 0;
 int configuration::barnes_hut_algorithm::AABBWorkItemCount = 100;
 int configuration::barnes_hut_algorithm::octreeWorkItemCount = 640;
 int configuration::barnes_hut_algorithm::octreeTopWorkItemCount = 640;
+int configuration::barnes_hut_algorithm::centerOfMassWorkItemCount = 640;
 double configuration::barnes_hut_algorithm::theta = 1.05;
 int configuration::barnes_hut_algorithm::maxBuildLevel = 7;
 d_type::int_t configuration::barnes_hut_algorithm::stackSize = 0;
@@ -23,11 +25,10 @@ void configuration::initializeConfigValues(d_type::int_t bodyCount, int storageS
     configuration::numberOfBodies = bodyCount;
     configuration::barnes_hut_algorithm::storageSizeParameter = storageSizeParam * numberOfBodies;
     configuration::barnes_hut_algorithm::stackSize = stackSizeParam * (d_type::int_t) std::ceil(std::log2(bodyCount));
-
 }
 
 void configuration::setBlockSize(int blockSize) {
-    configuration::naive_algorithm::tileSizeNaiveAlg = blockSize;
+    configuration::naive_algorithm::blockSize = blockSize;
 }
 
 void configuration::setTheta(double theta) {
@@ -64,4 +65,12 @@ void configuration::setDeviceGPU(bool useGPU) {
 
 void configuration::setWorkGroupSizeBarnesHut(int workGroupSize) {
     configuration::barnes_hut_algorithm::workGroupSize = workGroupSize;
+}
+
+void configuration::setCenterOfMassWorkItemCount(int workItemCount) {
+    configuration::barnes_hut_algorithm::centerOfMassWorkItemCount = workItemCount;
+}
+
+void configuration::setUseGPUKernel(bool useGPUKernel) {
+    configuration::naive_algorithm::GPU_Kernel = useGPUKernel;
 }

@@ -74,7 +74,7 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
     d_type::int_t currentStep = 0;
 
     // configure timer for time tracking
-    std::string device = "GPU";
+    std::string device = queue.get_device().get_info<info::device::name>();
     timer.setProperties(description, configuration::numberOfBodies, device);
     timer.addTimingSequence("Acceleration Kernel Time");
 
@@ -83,9 +83,15 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
 
     // compute initial accelerations
     auto beginAcc1 = std::chrono::steady_clock::now();
-    computeAccelerationsGPU(queue, masses, intermediatePosition_x, intermediatePosition_y,
-                            intermediatePosition_z,
-                            acceleration_x, acceleration_y, acceleration_z);
+    if (configuration::naive_algorithm::GPU_Kernel) {
+        computeAccelerationsGPU(queue, masses, intermediatePosition_x, intermediatePosition_y,
+                                intermediatePosition_z,
+                                acceleration_x, acceleration_y, acceleration_z);
+    } else {
+        computeAccelerationsCPU(queue, masses, intermediatePosition_x, intermediatePosition_y,
+                                intermediatePosition_z,
+                                acceleration_x, acceleration_y, acceleration_z);
+    }
     auto endAcc1 = std::chrono::steady_clock::now();
 
     timer.addTimeToSequence("Acceleration Kernel Time",
@@ -169,9 +175,15 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
 
         auto beginAcc = std::chrono::steady_clock::now();
         // update the acceleration values, only depends on new position of bodies
-        computeAccelerationsGPU(queue, masses, intermediatePosition_x, intermediatePosition_y,
-                                intermediatePosition_z,
-                                acceleration_x, acceleration_y, acceleration_z);
+        if (configuration::naive_algorithm::GPU_Kernel) {
+            computeAccelerationsGPU(queue, masses, intermediatePosition_x, intermediatePosition_y,
+                                    intermediatePosition_z,
+                                    acceleration_x, acceleration_y, acceleration_z);
+        } else {
+            computeAccelerationsCPU(queue, masses, intermediatePosition_x, intermediatePosition_y,
+                                    intermediatePosition_z,
+                                    acceleration_x, acceleration_y, acceleration_z);
+        }
         auto endAcc = std::chrono::steady_clock::now();
 
         timer.addTimeToSequence("Acceleration Kernel Time",
@@ -246,7 +258,7 @@ void NaiveAlgorithm::computeAccelerationsGPU(queue &queue, buffer<double> &masse
     double G = this->G;
 
     d_type::int_t N = configuration::numberOfBodies;
-    int blockSize = configuration::naive_algorithm::tileSizeNaiveAlg;
+    int blockSize = configuration::naive_algorithm::blockSize;
 
     // global size of the nd_range kernel has to be divisible by the blockSize (local size).
     // The purpose of the padding is that numberOfBodies + padding is divisible by the block size.

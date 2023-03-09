@@ -43,11 +43,15 @@ int main(int argc, char *argv[]) {
              cxxopts::value<int>());
 
     arguments.add_options()
-            ("max_level_top_octree", "Determines the maximum level to which the top of the octree gets build",
+            ("num_wi_AABB", "Determines the number of work-items used to calculate the AABB",
              cxxopts::value<int>());
 
     arguments.add_options()
-            ("num_wi_AABB", "Determines the number of work-items used to calculate the AABB",
+            ("num_wi_com", "Determines the number of work-items used to calculate the center of mass",
+             cxxopts::value<int>());
+
+    arguments.add_options()
+            ("max_level_top_octree", "Determines the maximum level to which the top of the octree gets build",
              cxxopts::value<int>());
 
     arguments.add_options()
@@ -86,6 +90,11 @@ int main(int argc, char *argv[]) {
             ("wg_size_barnes_hut",
              "Determines the work-group size of the acceleration kernel in the Barnes-Hut algorithm",
              cxxopts::value<int>());
+
+    arguments.add_options()
+            ("gpu_opt_kernel_naive",
+             "If true, a GPU optimized version of the acceleration kernel of the naive algorithm will be used. Otherwise, a kernel without the optimizations gets used.",
+             cxxopts::value<bool>());
 
     auto options = arguments.parse(argc, argv);
 
@@ -142,8 +151,16 @@ int main(int argc, char *argv[]) {
             configuration::setBlockSize(options["block_size"].as<int>());
         }
 
+        if (options.count("gpu_opt_kernel_naive") == 1) {
+            configuration::setUseGPUKernel(options["gpu_opt_kernel_naive"].as<bool>());
+        }
+
         std::cout << "Naive algorithm configuration:" << std::endl;
-        std::cout << "Block Size: " << configuration::naive_algorithm::tileSizeNaiveAlg << std::endl;
+        std::cout << "Block Size ------------------------------------ " << configuration::naive_algorithm::blockSize
+                  << std::endl;
+        std::cout << "Use GPU optimized acceleration kernel --------- " << configuration::naive_algorithm::GPU_Kernel
+                  << std::endl;
+        std::cout << std::endl << std::endl;
 
 
     } else if (options["algorithm"].as<std::string>() == "BarnesHut") {
@@ -159,6 +176,10 @@ int main(int argc, char *argv[]) {
 
         if (options.count("num_wi_top_octree") == 1) {
             configuration::setOctreeTopWorkItemCount(options["num_wi_top_octree"].as<int>());
+        }
+
+        if (options.count("num_wi_com") == 1) {
+            configuration::setCenterOfMassWorkItemCount(options["num_wi_com"].as<int>());
         }
 
         if (options.count("max_level_top_octree") == 1) {
@@ -185,6 +206,8 @@ int main(int argc, char *argv[]) {
                   << configuration::barnes_hut_algorithm::AABBWorkItemCount << std::endl;
         std::cout << "Work-items octree creation -------------- "
                   << configuration::barnes_hut_algorithm::octreeWorkItemCount << std::endl;
+        std::cout << "Work-items center of mass calculation --- "
+                  << configuration::barnes_hut_algorithm::centerOfMassWorkItemCount << std::endl;
 #ifndef OCTREE_TOP_DOWN_SYNC
         std::cout << "Work-items top of octree creation ------- "
                   << configuration::barnes_hut_algorithm::octreeTopWorkItemCount << std::endl;

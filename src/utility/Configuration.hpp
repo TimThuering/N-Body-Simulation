@@ -4,7 +4,8 @@
 #include <cstddef>
 #include <string>
 #include <sycl/sycl.hpp>
-namespace d_type{
+
+namespace d_type {
     typedef unsigned int int_t;     // type definition for integer data type
 }
 
@@ -27,9 +28,11 @@ namespace configuration {
          * the tile size determines the size of the blocks after which the local memory is updated again.
          * This parameter also implicitly defines the size of the work-groups used in the computeAccelerations kernel of the
          * naive algorithm.
-         * Value should be of the form 2^x.
          */
-        extern int tileSizeNaiveAlg;
+        extern int blockSize;
+
+        // if true, the GPU optimized version of the acceleration kernel will be used. Otherwise, the version without the optimizations gets used
+        extern bool GPU_Kernel;
 
     }
 
@@ -70,6 +73,9 @@ namespace configuration {
         // Number of work-items used for the creation of the top levels of the octree
         extern int octreeTopWorkItemCount;
 
+        // Number of work-items used for the calculation of the center of mass for each node of the octree
+        extern int centerOfMassWorkItemCount;
+
         /*
          * If ParallelOctreeTopDownSubtree is used, this parameter determines the maximum level to which the octree is
          * build in the first Phase.
@@ -101,6 +107,8 @@ namespace configuration {
 
     void setOctreeTopWorkItemCount(int workItemCount);
 
+    void setCenterOfMassWorkItemCount(int workItemCount);
+
     void setMaxBuildLevel(int maxLevel);
 
     void setEnergyComputation(bool computeEnergy);
@@ -111,8 +119,9 @@ namespace configuration {
 
     void setWorkGroupSizeBarnesHut(int workGroupSize);
 
-}
+    void setUseGPUKernel(bool useGPUKernel);
 
+}
 
 
 #endif //N_BODY_SIMULATION_CONFIGURATION_HPP
