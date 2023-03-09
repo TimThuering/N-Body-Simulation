@@ -77,6 +77,8 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
     std::string device = queue.get_device().get_info<info::device::name>();
     timer.setProperties(description, configuration::numberOfBodies, device);
     timer.addTimingSequence("Acceleration Kernel Time");
+    timer.addTimingSequence("Leapfrog Part 1");
+    timer.addTimingSequence("Leapfrog Part 2");
 
     // start of the simulation:
     // computations for initial state: all values get stored for the output
@@ -130,6 +132,7 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
 
         double delta_t = dt;
 
+        auto beginLF1 = std::chrono::steady_clock::now();
         // leapfrog integration part 1: update the position
         queue.submit([&](handler &h) {
             accessor<double> VX_k1_2(vx_k1_2, h);
@@ -156,6 +159,9 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
                 INTERMEDIATE_P_Z[i] = INTERMEDIATE_P_Z[i] + VZ_k1_2[i] * delta_t;
             });
         }).wait();
+        auto endLF1 = std::chrono::steady_clock::now();
+        timer.addTimeToSequence("Leapfrog Part 1",
+                                std::chrono::duration<double, std::milli>(endLF1 - beginLF1).count());
 
         // store the current body positions for visualization if the current step should be visualized
         if (visualizeCurrentStep) {
@@ -189,6 +195,7 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
         timer.addTimeToSequence("Acceleration Kernel Time",
                                 std::chrono::duration<double, std::milli>(endAcc - beginAcc).count());
 
+        auto beginLF2 = std::chrono::steady_clock::now();
         // leapfrog integration part 2: update velocities based on the newly computed acceleration
         queue.submit([&](handler &h) {
             accessor<double> VX_k1_2(vx_k1_2, h);
@@ -207,6 +214,9 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
                 INTERMEDIATE_V_Z[i] = VZ_k1_2[i] + ACC_Z[i] * (delta_t / 2.0);
             });
         }).wait();
+        auto endLF2 = std::chrono::steady_clock::now();
+        timer.addTimeToSequence("Leapfrog Part 2",
+                                std::chrono::duration<double, std::milli>(endLF2 - beginLF2).count());
 
         if (visualizeCurrentStep) {
             // store norm of all accelerations for the output

@@ -83,6 +83,8 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
     timer.addTimingSequence("Acceleration Kernel Time");
     timer.addTimingSequence("AABB creation");
     timer.addTimingSequence("Compute center of mass");
+    timer.addTimingSequence("Leapfrog Part 1");
+    timer.addTimingSequence("Leapfrog Part 2");
 
 #ifdef OCTREE_TOP_DOWN_SYNC
     timer.addTimingSequence("Build octree");
@@ -152,21 +154,18 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
 
         double delta_t = dt;
 
+        auto beginLF1 = std::chrono::steady_clock::now();
         // leapfrog integration part 1: update the position
         queue.submit([&](handler &h) {
-
             accessor<double> VX_k1_2(vx_k1_2, h);
             accessor<double> VY_k1_2(vy_k1_2, h);
             accessor<double> VZ_k1_2(vz_k1_2, h);
-
             accessor<double> INTERMEDIATE_V_X(intermediateVelocity_x, h);
             accessor<double> INTERMEDIATE_V_Y(intermediateVelocity_y, h);
             accessor<double> INTERMEDIATE_V_Z(intermediateVelocity_z, h);
-
             accessor<double> INTERMEDIATE_P_X(intermediatePosition_x, h);
             accessor<double> INTERMEDIATE_P_Y(intermediatePosition_y, h);
             accessor<double> INTERMEDIATE_P_Z(intermediatePosition_z, h);
-
             accessor<double> ACC_X(acceleration_x, h);
             accessor<double> ACC_Y(acceleration_y, h);
             accessor<double> ACC_Z(acceleration_z, h);
@@ -183,6 +182,9 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
                 INTERMEDIATE_P_Z[i] = INTERMEDIATE_P_Z[i] + VZ_k1_2[i] * delta_t;
             });
         }).wait();
+        auto endLF1 = std::chrono::steady_clock::now();
+        timer.addTimeToSequence("Leapfrog Part 1",
+                                std::chrono::duration<double, std::milli>(endLF1 - beginLF1).count());
 
         // store the current body positions for visualization if the current step should be visualized
         if (visualizeCurrentStep) {
@@ -221,17 +223,15 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
                   << std::endl;
 
 
+        auto beginLF2 = std::chrono::steady_clock::now();
         // leapfrog integration part 2: update velocities based on the newly computed acceleration
         queue.submit([&](handler &h) {
-
             accessor<double> VX_k1_2(vx_k1_2, h);
             accessor<double> VY_k1_2(vy_k1_2, h);
             accessor<double> VZ_k1_2(vz_k1_2, h);
-
             accessor<double> INTERMEDIATE_V_X(intermediateVelocity_x, h);
             accessor<double> INTERMEDIATE_V_Y(intermediateVelocity_y, h);
             accessor<double> INTERMEDIATE_V_Z(intermediateVelocity_z, h);
-
             accessor<double> ACC_X(acceleration_x, h);
             accessor<double> ACC_Y(acceleration_y, h);
             accessor<double> ACC_Z(acceleration_z, h);
@@ -242,6 +242,9 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
                 INTERMEDIATE_V_Z[i] = VZ_k1_2[i] + ACC_Z[i] * (delta_t / 2.0);
             });
         }).wait();
+        auto endLF2 = std::chrono::steady_clock::now();
+        timer.addTimeToSequence("Leapfrog Part 2",
+                                std::chrono::duration<double, std::milli>(endLF2 - beginLF2).count());
 
         if (visualizeCurrentStep) {
             // store norm of all accelerations for the output
