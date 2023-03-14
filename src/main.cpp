@@ -73,12 +73,12 @@ int main(int argc, char *argv[]) {
 
     arguments.add_options()
             ("energy",
-             "Turn on energy calculation of the system for each visualized time step. Can increase the runtime for large amounts of bodies.",
+             "Turn on energy computation of the system for each visualized time step. Can increase the runtime for large amounts of bodies.",
              cxxopts::value<bool>());
 
     arguments.add_options()
             ("sort_bodies",
-             "Turns on sorting of the bodies according to their position in the octree",
+             "Turns on sorting of the bodies according to their in-order position in the octree",
              cxxopts::value<bool>());
 
     arguments.add_options()
@@ -92,9 +92,9 @@ int main(int argc, char *argv[]) {
              cxxopts::value<int>());
 
     arguments.add_options()
-            ("gpu_opt_kernel_naive",
-             "If true, a GPU optimized version of the acceleration kernel of the naive algorithm will be used. Otherwise, a kernel without the optimizations gets used.",
-             cxxopts::value<bool>());
+            ("opt_stage",
+             "Can be either 0,1 or 2. A value of two will correspond to using the highest optimized version of the acceleration kernel of the naive Algorithm. A value of 0 will correspond to using a non-optimized version of this kernel",
+             cxxopts::value<int>());
 
     auto options = arguments.parse(argc, argv);
 
@@ -151,14 +151,17 @@ int main(int argc, char *argv[]) {
             configuration::setBlockSize(options["block_size"].as<int>());
         }
 
-        if (options.count("gpu_opt_kernel_naive") == 1) {
-            configuration::setUseGPUKernel(options["gpu_opt_kernel_naive"].as<bool>());
+        if (options.count("opt_stage") == 1) {
+            if (options["opt_stage"].as<int>() > 2 || options["opt_stage"].as<int>() < 0) {
+                throw std::invalid_argument("Optimization stage must be 0,1 or 2");
+            }
+            configuration::setOptimizationStage(options["opt_stage"].as<int>());
         }
 
         std::cout << "Naive algorithm configuration:" << std::endl;
         std::cout << "Block Size ------------------------------------ " << configuration::naive_algorithm::blockSize
                   << std::endl;
-        std::cout << "Use GPU optimized acceleration kernel --------- " << configuration::naive_algorithm::GPU_Kernel
+        std::cout << "Optimization stage acceleration kernel -------- " << configuration::naive_algorithm::optimization_stage
                   << std::endl;
         std::cout << std::endl << std::endl;
 

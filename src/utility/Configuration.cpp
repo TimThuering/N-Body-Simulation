@@ -8,7 +8,7 @@ bool configuration::compute_energy = false;
 bool configuration::use_GPUs = true;
 
 int configuration::naive_algorithm::blockSize = 64;
-bool configuration::naive_algorithm::GPU_Kernel = true;
+int configuration::naive_algorithm::optimization_stage = 2;
 
 d_type::int_t configuration::barnes_hut_algorithm::storageSizeParameter = 0;
 int configuration::barnes_hut_algorithm::AABBWorkItemCount = 100;
@@ -24,7 +24,12 @@ int configuration::barnes_hut_algorithm::workGroupSize = 64;
 void configuration::initializeConfigValues(d_type::int_t bodyCount, int storageSizeParam, int stackSizeParam) {
     configuration::numberOfBodies = bodyCount;
     configuration::barnes_hut_algorithm::storageSizeParameter = storageSizeParam * numberOfBodies;
-    configuration::barnes_hut_algorithm::stackSize = stackSizeParam * (d_type::int_t) std::ceil(std::log2(bodyCount));
+    // increase the stack size for small body amounts of bodies to avoid problems with small theta values
+    if (bodyCount < 15000) {
+        configuration::barnes_hut_algorithm::stackSize = stackSizeParam * (d_type::int_t) std::ceil(std::log2(bodyCount)) + 500;
+    } else {
+        configuration::barnes_hut_algorithm::stackSize = stackSizeParam * (d_type::int_t) std::ceil(std::log2(bodyCount));
+    }
 }
 
 void configuration::setBlockSize(int blockSize) {
@@ -71,6 +76,6 @@ void configuration::setCenterOfMassWorkItemCount(int workItemCount) {
     configuration::barnes_hut_algorithm::centerOfMassWorkItemCount = workItemCount;
 }
 
-void configuration::setUseGPUKernel(bool useGPUKernel) {
-    configuration::naive_algorithm::GPU_Kernel = useGPUKernel;
-}
+void configuration::setOptimizationStage(int stage) {
+    configuration::naive_algorithm::optimization_stage = stage;
+};

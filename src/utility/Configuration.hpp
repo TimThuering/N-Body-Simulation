@@ -31,9 +31,9 @@ namespace configuration {
          */
         extern int blockSize;
 
-        // if true, the GPU optimized version of the acceleration kernel will be used. Otherwise, the version without the optimizations gets used
-        extern bool GPU_Kernel;
-
+        // Can be 0,1 or 2. When 2, the most optimized version of the acceleration kernel will be used. When 0, the
+        // non-optimized version of the acceleration kernel gets used.
+        extern int optimization_stage;
     }
 
     namespace barnes_hut_algorithm {
@@ -119,7 +119,7 @@ namespace configuration {
 
     void setWorkGroupSizeBarnesHut(int workGroupSize);
 
-    void setUseGPUKernel(bool useGPUKernel);
+    void setOptimizationStage(int stage);
 
 }
 

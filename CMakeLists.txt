@@ -4,6 +4,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 option(USE_DPCPP "Use DPC++" ON)
 option(USE_OCTREE_TOP_DOWN_SYNC "Use the top-down synchronized approach without subtrees for the tree creation" OFF)
+option(ENABLE_TESTS "Enable Test" ON)
 
 # DPC++
 if(${USE_DPCPP} )
@@ -56,10 +57,9 @@ if (NOT ${USE_DPCPP})
     target_link_options(N_Body_Simulation PUBLIC -fopenmp)
 endif ()
 
-
-
-
 include(FetchContent)
+
+if (${ENABLE_TESTS})
 FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
@@ -86,15 +86,12 @@ add_executable(BarnesHutTest
         src/utility/Configuration.hpp
         src/utility/Configuration.cpp
         )
-
-
-
-
 enable_testing()
 include(GoogleTest)
 gtest_discover_tests(InputParserTest BarnesHutTest)
 target_link_libraries(InputParserTest GTest::gtest_main)
 target_link_libraries(BarnesHutTest GTest::gtest_main)
+endif ()
 
 FetchContent_Declare(
         cxxopts

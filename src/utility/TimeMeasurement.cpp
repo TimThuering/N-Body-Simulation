@@ -23,7 +23,7 @@ void TimeMeasurement::exportJSON(const std::string &path) {
     jsonFile << "  " << "\"device\": " << "\"" << device << "\",\n";
     if (algorithmType == "Naive Algorithm") {
         jsonFile << "  " << "\"block size\": " << configuration::naive_algorithm::blockSize << ",\n";
-        jsonFile << "  " << "\"gpu kernel\": " << configuration::naive_algorithm::GPU_Kernel << ",\n";
+        jsonFile << "  " << "\"optimization stage\": " << configuration::naive_algorithm::optimization_stage << ",\n";
     } else {
         jsonFile << "  " << "\"theta\": " << configuration::barnes_hut_algorithm::theta << ",\n";
         jsonFile << "  " << "\"work-items AABB\": " << configuration::barnes_hut_algorithm::AABBWorkItemCount << ",\n";
