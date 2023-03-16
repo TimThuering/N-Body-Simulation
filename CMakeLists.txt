@@ -41,8 +41,6 @@ endif()
 
 # hipSYCL
 if (NOT ${USE_DPCPP})
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/usr/lib/llvm-10/include/openmp")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L/usr/lib/llvm-10/lib")
     find_package(hipSYCL CONFIG REQUIRED)
     find_package(OpenMP REQUIRED)
     add_sycl_to_target(TARGET N_Body_Simulation SOURCES
