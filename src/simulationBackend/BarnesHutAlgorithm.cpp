@@ -119,6 +119,7 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
                             std::chrono::duration<double, std::milli>(end1 - beginAccelerationKernel1).count());
     timer.addTimeToSequence("Total Time", std::chrono::duration<double, std::milli>(end1 - begin1).count());
 
+    std::cout << std::endl;
 
     if (configuration::compute_energy) {
         // compute energy of the initial step.
@@ -129,13 +130,12 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
 
     // store norm of all accelerations
     storeAccelerations(currentStep, acceleration_x, acceleration_y, acceleration_z);
-    std::cout << "Step " << currentStep << std::endl;
+    std::cout << "Finished initial step " << currentStep << std::endl << std::endl;
 
-    // continue with next simulation step
+    // continue with first simulation step
     time += dt;
     timeSinceLastVisualization += dt;
     currentStep += 1;
-
     // vectors for intermediate values during the time integration
     std::vector<double> vx_k1_2_vec(configuration::numberOfBodies);
     std::vector<double> vy_k1_2_vec(configuration::numberOfBodies);
@@ -145,10 +145,8 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
     buffer<double> vy_k1_2(vy_k1_2_vec.data(), vy_k1_2_vec.size());
     buffer<double> vz_k1_2(vz_k1_2_vec.data(), vz_k1_2_vec.size());
 
-
     // simulation of the next steps:
-    while (time < t_end) {
-
+    while (time <= t_end + 0.000001) {
         // determine if current step should be visualized.
         bool visualizeCurrentStep = (std::abs(timeSinceLastVisualization - visualizationStepWidth) < 0.000001);
 
@@ -186,10 +184,9 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
         timer.addTimeToSequence("Leapfrog Part 1",
                                 std::chrono::duration<double, std::milli>(endLF1 - beginLF1).count());
 
+
         // store the current body positions for visualization if the current step should be visualized
         if (visualizeCurrentStep) {
-            std::cout << "Step " << currentStep << std::endl;
-
             host_accessor<double> INTERMEDIATE_P_X(intermediatePosition_x);
             host_accessor<double> INTERMEDIATE_P_Y(intermediatePosition_y);
             host_accessor<double> INTERMEDIATE_P_Z(intermediatePosition_z);
@@ -218,9 +215,7 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
                                 std::chrono::duration<double, std::milli>(end - beginAccelerationKernel).count());
         timer.addTimeToSequence("Total Time", std::chrono::duration<double, std::milli>(end - begin).count());
 
-
-        std::cout << "Time of step:  " << std::chrono::duration<double, std::milli>(end - begin).count()
-                  << std::endl;
+        std::cout << std::endl;
 
 
         auto beginLF2 = std::chrono::steady_clock::now();
@@ -247,6 +242,8 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
                                 std::chrono::duration<double, std::milli>(endLF2 - beginLF2).count());
 
         if (visualizeCurrentStep) {
+            std::cout << "Finished step " << currentStep << std::endl << std::endl;
+
             // store norm of all accelerations for the output
             storeAccelerations(currentStep, acceleration_x, acceleration_y, acceleration_z);
 
@@ -274,7 +271,6 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
             currentStep += 1;
             timeSinceLastVisualization = 0.0;
         }
-
         // continue with next simulation step
         time += dt;
         timeSinceLastVisualization += dt;
@@ -341,7 +337,8 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
                 double pos_y_i = POS_Y[i];
                 double pos_z_i = POS_Z[i];
 
-                d_type::int_t currentStackIndex = (stack_size * i) + 1; // start index for the stack of current work item.
+                d_type::int_t currentStackIndex =
+                        (stack_size * i) + 1; // start index for the stack of current work item.
                 NODES_ON_STACK[currentStackIndex] = 0; // push the root node on the stack
 
                 while (currentStackIndex != (stack_size * i)) { // while stack not empty
@@ -398,6 +395,7 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
 
 
     auto end = std::chrono::steady_clock::now();
-    std::cout << std::chrono::duration<double, std::milli>(end - begin).count() << std::endl;
+    std::cout << "Acceleration computation: " << std::chrono::duration<double, std::milli>(end - begin).count() << "ms"
+              << std::endl;
 
 }

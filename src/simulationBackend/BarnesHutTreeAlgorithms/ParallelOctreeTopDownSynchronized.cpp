@@ -9,7 +9,8 @@ ParallelOctreeTopDownSynchronized::ParallelOctreeTopDownSynchronized() :
 
 void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double> &current_positions_x,
                                                     buffer<double> &current_positions_y,
-                                                    buffer<double> &current_positions_z, buffer<double> &masses, TimeMeasurement &timer) {
+                                                    buffer<double> &current_positions_z, buffer<double> &masses,
+                                                    TimeMeasurement &timer) {
 
     auto begin = std::chrono::steady_clock::now();
 
@@ -317,7 +318,7 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                                         // release the lock
                                         nd_item.mem_fence(access::fence_space::global_and_local);
                                         atomicNodeIsLockedAccessor.store(0, memoryOrderStore,
-                                                                             memory_scope::device);
+                                                                         memory_scope::device);
                                     }
                                 } else {
                                     // the current node is not a leaf node, i.e. it has 8 children
@@ -348,7 +349,6 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
                                     currentNode = octantID;
                                     currentDepth += 1;
                                 }
-                                //nd_item.barrier();
                             }
                         }
                     }
@@ -371,15 +371,18 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
     }
 
     auto end = std::chrono::steady_clock::now();
-    std::cout << "---------------------------------------------------------- "
-              << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+    std::cout << "Octree creation: " << std::chrono::duration<double, std::milli>(end - begin).count()  << "ms"
               << std::endl;
 
-    timer.addTimeToSequence("AABB creation", std::chrono::duration<double, std::milli>(endAABB_creation - begin).count());
-    timer.addTimeToSequence("Build octree", std::chrono::duration<double, std::milli>(endBuildOctree - endAABB_creation).count());
-    timer.addTimeToSequence("Compute center of mass", std::chrono::duration<double, std::milli>(endCenterOfMass - endBuildOctree).count());
+    timer.addTimeToSequence("AABB creation",
+                            std::chrono::duration<double, std::milli>(endAABB_creation - begin).count());
+    timer.addTimeToSequence("Build octree",
+                            std::chrono::duration<double, std::milli>(endBuildOctree - endAABB_creation).count());
+    timer.addTimeToSequence("Compute center of mass",
+                            std::chrono::duration<double, std::milli>(endCenterOfMass - endBuildOctree).count());
 
     if (configuration::barnes_hut_algorithm::sortBodies) {
-        timer.addTimeToSequence("Sort bodies", std::chrono::duration<double, std::milli>(end - endCenterOfMass).count());
+        timer.addTimeToSequence("Sort bodies",
+                                std::chrono::duration<double, std::milli>(end - endCenterOfMass).count());
     }
 }

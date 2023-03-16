@@ -69,9 +69,8 @@ void ParallelOctreeTopDownSubtrees::buildOctree(queue &queue, buffer<double> &cu
     }
 
     auto end = std::chrono::steady_clock::now();
-    std::cout << "---------------------------------------------------------- "
-              << std::chrono::duration<double, std::milli>(end - begin).count()
-              << std::endl;
+    std::cout << "Octree creation: "
+              << std::chrono::duration<double, std::milli>(end - begin).count() << "ms" << std::endl;
 
 
     timer.addTimeToSequence("AABB creation",
@@ -806,7 +805,6 @@ void ParallelOctreeTopDownSubtrees::buildSubtrees(queue &queue, buffer<double> &
                             currentNode = octantID;
                             currentDepth += 1;
                         }
-//                                           nd_item.barrier();
                     }
                 }
             }

@@ -11,10 +11,10 @@ int configuration::naive_algorithm::blockSize = 64;
 int configuration::naive_algorithm::optimization_stage = 2;
 
 d_type::int_t configuration::barnes_hut_algorithm::storageSizeParameter = 0;
-int configuration::barnes_hut_algorithm::AABBWorkItemCount = 100;
+int configuration::barnes_hut_algorithm::AABBWorkItemCount = 1024;
 int configuration::barnes_hut_algorithm::octreeWorkItemCount = 640;
-int configuration::barnes_hut_algorithm::octreeTopWorkItemCount = 640;
-int configuration::barnes_hut_algorithm::centerOfMassWorkItemCount = 640;
+int configuration::barnes_hut_algorithm::octreeTopWorkItemCount = 1024;
+int configuration::barnes_hut_algorithm::centerOfMassWorkItemCount = 1024;
 double configuration::barnes_hut_algorithm::theta = 1.05;
 int configuration::barnes_hut_algorithm::maxBuildLevel = 7;
 d_type::int_t configuration::barnes_hut_algorithm::stackSize = 0;

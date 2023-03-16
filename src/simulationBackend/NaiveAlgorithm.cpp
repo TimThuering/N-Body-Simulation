@@ -13,7 +13,6 @@ NaiveAlgorithm::NaiveAlgorithm(double dt, double tEnd, double visualizationStepW
 
 
 void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
-    auto begin = std::chrono::steady_clock::now();
     // Vectors and their corresponding buffers for the acceleration values of each body induced by the gravitational
     // force from all other bodies in the dataset. The index corresponds the body id.
     std::vector<double> acc_x(configuration::numberOfBodies);
@@ -89,7 +88,7 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
         computeAccelerations_opt_2(queue, masses, intermediatePosition_x, intermediatePosition_y,
                                    intermediatePosition_z,
                                    acceleration_x, acceleration_y, acceleration_z);
-    } else if (configuration::naive_algorithm::optimization_stage == 1){
+    } else if (configuration::naive_algorithm::optimization_stage == 1) {
         computeAccelerations_opt_1(queue, masses, intermediatePosition_x, intermediatePosition_y,
                                    intermediatePosition_z,
                                    acceleration_x, acceleration_y, acceleration_z);
@@ -111,9 +110,9 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
 
     // store norm of all accelerations
     storeAccelerations(currentStep, acceleration_x, acceleration_y, acceleration_z);
-    std::cout << "Step " << currentStep << std::endl;
+    std::cout << "Finished initial step " << currentStep << std::endl << std::endl;
 
-    // continue with next simulation step
+    // continue with first simulation step
     time += dt;
     timeSinceLastVisualization += dt;
     currentStep += 1;
@@ -129,7 +128,7 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
 
 
     // simulation of the next steps:
-    while (time < t_end) {
+    while (time <= t_end + 0.000001) {
 
         // determine if current step should be visualized.
         bool visualizeCurrentStep = (std::abs(timeSinceLastVisualization - visualizationStepWidth) < 0.000001);
@@ -169,7 +168,6 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
 
         // store the current body positions for visualization if the current step should be visualized
         if (visualizeCurrentStep) {
-            std::cout << "Step " << currentStep << std::endl;
 
             host_accessor<double> INTERMEDIATE_P_X(intermediatePosition_x);
             host_accessor<double> INTERMEDIATE_P_Y(intermediatePosition_y);
@@ -189,7 +187,7 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
             computeAccelerations_opt_2(queue, masses, intermediatePosition_x, intermediatePosition_y,
                                        intermediatePosition_z,
                                        acceleration_x, acceleration_y, acceleration_z);
-        } else if (configuration::naive_algorithm::optimization_stage == 1){
+        } else if (configuration::naive_algorithm::optimization_stage == 1) {
             computeAccelerations_opt_1(queue, masses, intermediatePosition_x, intermediatePosition_y,
                                        intermediatePosition_z,
                                        acceleration_x, acceleration_y, acceleration_z);
@@ -227,6 +225,7 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
                                 std::chrono::duration<double, std::milli>(endLF2 - beginLF2).count());
 
         if (visualizeCurrentStep) {
+            std::cout << "Finished step " << currentStep << std::endl << std::endl;
             // store norm of all accelerations for the output
             storeAccelerations(currentStep, acceleration_x, acceleration_y, acceleration_z);
 
@@ -258,9 +257,6 @@ void NaiveAlgorithm::startSimulation(const SimulationData &simulationData) {
         time += dt;
         timeSinceLastVisualization += dt;
     }
-    auto end = std::chrono::steady_clock::now();
-    std::cout << "Total time:  " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
-              << std::endl;
 }
 
 void NaiveAlgorithm::computeAccelerations_opt_2(queue &queue, buffer<double> &masses,
@@ -359,8 +355,8 @@ void NaiveAlgorithm::computeAccelerations_opt_2(queue &queue, buffer<double> &ma
 
     auto end = std::chrono::steady_clock::now();
 
-    std::cout << "Acceleration Kernel Time:  "
-              << std::chrono::duration<double, std::milli>(end - begin).count() << std::endl;
+    std::cout << "Acceleration computation: "
+              << std::chrono::duration<double, std::milli>(end - begin).count() << "ms" << std::endl;
 }
 
 void
@@ -416,8 +412,8 @@ NaiveAlgorithm::computeAccelerations_opt_0(queue &queue, buffer<double> &masses,
     }).wait();
     auto end = std::chrono::steady_clock::now();
 
-    std::cout << "Acceleration Kernel Time:  "
-              << std::chrono::duration<double, std::milli>(end - begin).count() << std::endl;
+    std::cout << "Acceleration computation: "
+              << std::chrono::duration<double, std::milli>(end - begin).count() << "ms" << std::endl;
 }
 
 void
@@ -481,6 +477,6 @@ NaiveAlgorithm::computeAccelerations_opt_1(queue &queue, buffer<double> &masses,
     }).wait();
     auto end = std::chrono::steady_clock::now();
 
-    std::cout << "Acceleration Kernel Time:  "
+    std::cout << "Acceleration computation: "
               << std::chrono::duration<double, std::milli>(end - begin).count() << std::endl;
 }
