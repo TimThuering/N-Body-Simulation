@@ -270,7 +270,7 @@ void nBodyAlgorithm::writeTotalEnergy(size_t i, std::ofstream &vtpFile) {
 void nBodyAlgorithm::writePotentialEnergy(size_t i, std::ofstream &vtpFile) {
     if (configuration::compute_energy) {
         vtpFile << potentialEnergy[i] << '\n';
-    }else {
+    } else {
         vtpFile << 0 << '\n';
     }
 }
@@ -278,7 +278,7 @@ void nBodyAlgorithm::writePotentialEnergy(size_t i, std::ofstream &vtpFile) {
 void nBodyAlgorithm::writeKineticEnergy(size_t i, std::ofstream &vtpFile) {
     if (configuration::compute_energy) {
         vtpFile << kineticEnergy[i] << '\n';
-    }else {
+    } else {
         vtpFile << 0 << '\n';
     }
 }
@@ -296,8 +296,48 @@ void nBodyAlgorithm::writeOffsets(size_t i, std::ofstream &vtpFile) {
 }
 
 void nBodyAlgorithm::writeBodyClasses(const SimulationData &simulationData, std::ofstream &vtpFile) {
+    // map body classes to integers.
+    // Body classes correspond to the classes described in: "https://pdssbn.astro.umd.edu/data_other/objclass.shtml
     for (const std::string &bodyClass: simulationData.body_classes) {
-        vtpFile << 0 << '\n';
+        if (bodyClass == "AMO") {
+            vtpFile << 1 << '\n';
+        } else if (bodyClass == "APO") {
+            vtpFile << 2 << '\n';
+        } else if (bodyClass == "ATE") {
+            vtpFile << 3 << '\n';
+        } else if (bodyClass == "IEO") {
+            vtpFile << 4 << '\n';
+        } else if (bodyClass == "MCA") {
+            vtpFile << 5 << '\n';
+        } else if (bodyClass == "IMB") {
+            vtpFile << 6 << '\n';
+        } else if (bodyClass == "MBA") {
+            vtpFile << 7 << '\n';
+        } else if (bodyClass == "OMB") {
+            vtpFile << 8 << '\n';
+        } else if (bodyClass == "CEN") {
+            vtpFile << 9 << '\n';
+        } else if (bodyClass == "TJN") {
+            vtpFile << 10 << '\n';
+        } else if (bodyClass == "TNO") {
+            vtpFile << 11 << '\n';
+        } else if (bodyClass == "AST") {
+            vtpFile << 12 << '\n';
+        } else if (bodyClass == "PAA") {
+            vtpFile << 13 << '\n';
+        } else if (bodyClass == "HYA") {
+            vtpFile << 14 << '\n';
+        } else if (bodyClass == "STA") {
+            vtpFile << 15 << '\n'; // stars
+        } else if (bodyClass == "DWA") {
+            vtpFile << 16 << '\n'; // dwarf planets
+        } else if (bodyClass == "PLA") {
+            vtpFile << 17 << '\n'; // planets
+        } else if (bodyClass == "SAT") {
+            vtpFile << 18 << '\n'; // moons
+        } else {
+            vtpFile << 0 << '\n';
+        }
     }
 }
 
