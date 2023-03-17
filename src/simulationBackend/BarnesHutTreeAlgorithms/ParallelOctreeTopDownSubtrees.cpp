@@ -188,10 +188,10 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
 
         // determine the maximum body count per work-item
         d_type::int_t bodyCountPerWorkItem;
-        if (configuration::numberOfBodies > configuration::barnes_hut_algorithm::octreeWorkItemCount) {
+        if (configuration::numberOfBodies > configuration::barnes_hut_algorithm::octreeTopWorkItemCount) {
             bodyCountPerWorkItem = std::ceil(
                     (double) configuration::numberOfBodies /
-                    (double) configuration::barnes_hut_algorithm::octreeWorkItemCount);
+                    (double) configuration::barnes_hut_algorithm::octreeTopWorkItemCount);
         } else {
             bodyCountPerWorkItem = 1;
         }
