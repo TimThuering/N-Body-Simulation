@@ -196,8 +196,8 @@ void ParallelOctreeTopDownSubtrees::buildOctreeToLevel(queue &queue, buffer<doub
             bodyCountPerWorkItem = 1;
         }
 
-        auto kernelRange = nd_range<1>(range<1>(configuration::barnes_hut_algorithm::octreeWorkItemCount),
-                                       range<1>(configuration::barnes_hut_algorithm::octreeWorkItemCount));
+        auto kernelRange = nd_range<1>(range<1>(configuration::barnes_hut_algorithm::octreeTopWorkItemCount),
+                                       range<1>(configuration::barnes_hut_algorithm::octreeTopWorkItemCount));
 
         h.parallel_for(kernelRange, [=](auto &nd_item) {
             atomic_ref<d_type::int_t, memory_order::acq_rel, memory_scope::device,
