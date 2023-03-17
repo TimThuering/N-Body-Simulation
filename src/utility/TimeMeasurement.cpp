@@ -29,6 +29,8 @@ void TimeMeasurement::exportJSON(const std::string &path) {
         jsonFile << "  " << "\"work-items AABB\": " << configuration::barnes_hut_algorithm::AABBWorkItemCount << ",\n";
         jsonFile << "  " << "\"work-items octree\": " << configuration::barnes_hut_algorithm::octreeWorkItemCount
                  << ",\n";
+        jsonFile << "  " << "\"work-items center of mass\": "
+                 << configuration::barnes_hut_algorithm::centerOfMassWorkItemCount << ",\n";
 #ifndef OCTREE_TOP_DOWN_SYNC
         jsonFile << "  " << "\"work-items top octree\": " << configuration::barnes_hut_algorithm::octreeTopWorkItemCount
                  << ",\n";
