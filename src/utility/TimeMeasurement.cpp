@@ -26,6 +26,7 @@ void TimeMeasurement::exportJSON(const std::string &path) {
         jsonFile << "  " << "\"optimization stage\": " << configuration::naive_algorithm::optimization_stage << ",\n";
     } else {
         jsonFile << "  " << "\"theta\": " << configuration::barnes_hut_algorithm::theta << ",\n";
+        jsonFile << "  " << "\"work-group size acceleration\": " << configuration::barnes_hut_algorithm::workGroupSize << ",\n";
         jsonFile << "  " << "\"work-items AABB\": " << configuration::barnes_hut_algorithm::AABBWorkItemCount << ",\n";
         jsonFile << "  " << "\"work-items octree\": " << configuration::barnes_hut_algorithm::octreeWorkItemCount
                  << ",\n";

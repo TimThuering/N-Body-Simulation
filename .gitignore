@@ -4,6 +4,7 @@ cmake-build-debug-hipsycl/
 cmake-build-release/
 cmake-build-release-dpc/
 cmake-build-release-hipsycl/
+cmake-build-open-sycl/
 .idea/
 data/
 output/
