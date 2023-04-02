@@ -1,32 +1,10 @@
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
+cmake-build-debug/
+cmake-build-debug-dpc/
+cmake-build-debug-hipsycl/
+cmake-build-release/
+cmake-build-release-dpc/
+cmake-build-release-hipsycl/
+cmake-build-open-sycl/
+.idea/
+data/
+output/
