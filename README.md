@@ -58,5 +58,28 @@ make
 ```
 
 Replace `gfxXXX` according to your AMD GPU.
-For more information, please refer to the [DPC++ documentation](https://intel.github.io/llvm-docs/GetStartedGuide.html)
+For more information, please refer to the [DPC++ documentation](https://intel.github.io/llvm-docs/GetStartedGuide.html).
+
+## Running the program
+
+The programm has several optional and mandatory program arguments.
+
+### Mandatory program arguments
+
+| Argument          | Description         | Notes             |
+| ----------------- | ------------------- | ----------------- |
+| `--file` | Path to a .csv file containing the data for the simulation | - |
+| `--dt` | Width of the time step for the simulation  | E.g.: `1h` for one hour |
+| `--t_end` | The internal time until the system will be simulated | E.g.: `365d` for  365 days or `12y` for twelve years |
+| `--vs` | The time step width of the visualization  | E.g.: `1d` to visualize every day |
+| `--vs_dir` | The top-level output directory for the output files | A separete foulder (with a time stamp) that contains all <br /> output files will be created in this directory|
+| `--algorithm` | The algorithm to use for the simulation  | Either `<naive>` or `<BarnesHut>` |
+
+### Optional arguments for the naive algorithm
+
+| Argument          | Description         | Notes             |
+| ----------------- | ------------------- | ----------------- |
+| `--block_size` | The size of the blocks after which the <br /> local memory is updated in the naive algorithm | Should be a power of 2, e.g., `128` |
+| `--opt_stage` | Selects the optimization stage of the naive algorithm | Possible values:<br /> <ul><li>`0` (non-optimized)</li><li>`1`</li><li>`2` (highest degree of optimization)</li></ul> |
+
 
