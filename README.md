@@ -123,7 +123,9 @@ The input data for the simulation has to contain information of all bodies of th
 The .csv file has to have the following format:
 
 | id | name of body | name for class of body | mass of body in kg | x position | y position | z position | x velocity | y velocity | z velocity |
-| - | - | - | - | - | - | - | - | - | - 
+| - | - | - | - | - | - | - | - | - | - |
+
+Use a `,` as separator. The unit of length has to be an astronomical unit.
 
 ## Examples
 
