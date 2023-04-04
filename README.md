@@ -93,7 +93,7 @@ The programm has several optional and mandatory program arguments.
 ### Optional arguments for the Barnes-Hut algorithm
 | Argument          | Description         | Notes             |
 | ----------------- | ------------------- | ----------------- |
-| `--theta` | The theta-value which determines the <br /> accuracy of the Barnes-Hut algorithm | Smaller values like `0.2` mean worse <br />  performance but better accuracy <br /> Larger values like `1` result into better <br />  performance but worse accuracy |
+| `--theta` | The theta-value which determines the <br /> accuracy of the Barnes-Hut algorithm | Smaller values like `0.2` <br /> mean worse performance but better accuracy <br /> Larger values like `1` result into better <br />  performance but worse accuracy |
 | `--num_wi_octree` | Determines the number of work-items <br /> used to build the octree | - |
 | `--num_wi_top_octree` | Determines the number of work-items <br /> used to build the top of the octree | - |
 | `--num_wi_AABB` | Determines the number of work-items <br /> used to calculate the AABB | - |
