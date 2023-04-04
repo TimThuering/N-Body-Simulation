@@ -72,7 +72,7 @@ The programm has several optional and mandatory program arguments.
 | `--dt` | Width of the time step for the simulation  | E.g.: `1h` for one hour |
 | `--t_end` | The internal time until the system will be simulated | E.g.: `365d` for  365 days or `12y` for twelve years |
 | `--vs` | The time step width of the visualization  | E.g.: `1d` to visualize every day |
-| `--vs_dir` | The top-level output directory for the output files | A separete foulder (with a time stamp) that contains all <br /> output files will be created in this directory|
+| `--vs_dir` | The top-level output directory for the output files | A separete foulder (with a time stamp) that <br /> contains all output files will be created in this directory|
 | `--algorithm` | The algorithm to use for the simulation  | Either `<naive>` or `<BarnesHut>` |
 
 ### Optional programm arguments
@@ -100,7 +100,7 @@ The programm has several optional and mandatory program arguments.
 | `--num_wi_com` | Determines the number of work-items used <br /> to calculate the center of mass | - |
 | `--max_level_top_octree` | Determines the maximum level <br /> to which the top of the octree gets build | - |
 | `--wg_size_barnes_hut` | Determines the work-group size of the acceleration kernel | - |
-| `--sort_bodies` | Enable / disable sorting of the bodies according to their <br /> in-order position in the octree (enabled by default) | `true` or `false`|
+| `--sort_bodies` | Enable / disable sorting of the bodies <br /> according to their in-order position in the octree (enabled by default) | `true` or `false`|
 | `--storage_size_param` | Scales the amount of memory for the octree data structures | Use only if you encounter problems <br />  with specific datasets |
 | `--stack_size_param` | Scales the amount of memory for the octree data structures | Use only if you encounter problems <br /> with specific datasets  |
 
