@@ -30,7 +30,7 @@ cmake -DUSE_DPCPP=OFF -DHIPSYCL_TARGETS="cuda:sm_XX;omp.accelerated" -DCMAKE_BU
 make
 ```
 
-To build the project for AMD GPUs, replace `cuda:sm_XX` with `hip:gfx_XXX` and replace `gfxXXX` according to your AMD GPU.
+To build the project for AMD GPUs, replace `cuda:sm_XX` with `hip:gfxXXX` and replace `gfxXXX` according to your AMD GPU.
 
 If you do not wish to build the project with support for CPUs with OpenMP, delete `;omp.accelerated`.
 
@@ -53,7 +53,7 @@ Make sure that the `DEVICE_LIB_PATH` environment variable points the the locatio
 ```
 mkdir build
 cd build
-cmake -DUSE_DPCPP=ON -DUSE_DPCPP_AMD=ON -DDPCPP_ARCH="gfxXX" -DCMAKE_BUILD_TYPE=release ..
+cmake -DUSE_DPCPP=ON -DUSE_DPCPP_AMD=ON -DDPCPP_ARCH="gfxXXX" -DCMAKE_BUILD_TYPE=release ..
 make
 ```
 
