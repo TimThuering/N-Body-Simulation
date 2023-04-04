@@ -5,7 +5,7 @@ This project was created in the course of a bachelor thesis.
 It contains code for n-body simulations that was used to analyze the runtime behavior of two n-body algorithms: 
 The naive approach and the Barnes-Hut alogrithm. 
 
-Both algorithms are implemented using SYCL and can be executed in parallel on GPUs and CPUs. 
+Both algorithms are implemented using [SYCL](https://www.khronos.org/sycl/) and can be executed in parallel on GPUs and CPUs. 
 
 ## Features
 - Parallel SYCL implementation of the naive algorithm 
@@ -20,12 +20,19 @@ The project supports Linux.
 
 ### Building the project with Open SYCL
 
+First, clone this repository and create a build directory:
+
+```
+git clone https://github.com/TimThuering/N-Body-Simulation.git
+cd N-Body-Simulation
+mkdir build
+cd build
+```
+
 The following commands build the project with Open SYCL for CUDA and OpenMP.
 Replace `sm_XX` with the [compute capability](https://developer.nvidia.com/cuda-gpus) of your GPU, e.g., `sm_75`.
 
 ```
-mkdir build
-cd build
 cmake -DUSE_DPCPP=OFF -DHIPSYCL_TARGETS="cuda:sm_XX;omp.accelerated" -DCMAKE_BUILD_TYPE=release ..
 make
 ```
@@ -41,8 +48,6 @@ For further details, please refer to the [Open SYCL documentation](https://githu
 The following commands build the project with DPC++ for CUDA.
 
 ```
-mkdir build
-cd build
 cmake -DUSE_DPCPP=ON -DCMAKE_BUILD_TYPE=release ..
 make
 ```
@@ -51,8 +56,6 @@ The following commands build the project with DPC++ for AMD GPUS.
 Make sure that the `DEVICE_LIB_PATH` environment variable points the the location of `<path to amdgcn>/amdgcn/bitcode/`
 
 ```
-mkdir build
-cd build
 cmake -DUSE_DPCPP=ON -DUSE_DPCPP_AMD=ON -DDPCPP_ARCH="gfxXXX" -DCMAKE_BUILD_TYPE=release ..
 make
 ```
@@ -98,10 +101,45 @@ The programm has several optional and mandatory program arguments.
 | `--num_wi_top_octree` | Determines the number of work-items <br /> used to build the top of the octree | - |
 | `--num_wi_AABB` | Determines the number of work-items <br /> used to calculate the AABB | - |
 | `--num_wi_com` | Determines the number of work-items <br /> used to calculate the center of mass | - |
-| <nobr>`--max_level_top_octree`</nobr> | Determines the maximum level <br /> to which the top of the octree gets build | - |
+| `--max_level_top_octree` | Determines the maximum level <br /> to which the top of the octree gets build | - |
 | `--wg_size_barnes_hut` | Determines the work-group size of the acceleration kernel | - |
 | `--sort_bodies` | Enable / disable sorting of the bodies <br /> according to their in-order position in the<br />  octree (enabled by default) | `true` or `false`|
 | `--storage_size_param` | Scales the amount of memory for the <br /> octree data structures | Use only if you encounter problems <br />  with specific datasets |
 | `--stack_size_param` | Scales the amount of memory for the <br /> octree data structures | Use only if you encounter problems <br /> with specific datasets  |
 
+## CMake options
 
+| Option            | Description         | Notes             |
+| ----------------- | ------------------- | ----------------- |
+| `-DUSE_DPCPP` | Enable / disable the usage of DPC++ | `ON` (Default) or `OFF` |
+| `-DUSE_OCTREE_TOP_DOWN_SYNC`| Use the top-down synchronized approach without subtrees for the tree creation | Default `OFF`|
+| `-DENABLE_TESTS` | Enable building of test | Only supported with DPC++ |
+| `-DUSE_DPCPP_AMD` | Use DPC++ with AMD GPUs | - |
+| `DPCPP_ARCH` | Specify the GPU architecture for DPC++ when using AMD GPUs| Not recomended when using NVIDIA GPUs|
+
+## Input data format
+
+The input data for the simulation has to contain information of all bodies of the system.
+The .csv file has to have the following format:
+
+| id | name of body | name for class of body | mass of body in kg | x position | y position | z position | x velocity | y velocity | z velocity |
+| - | - | - | - | - | - | - | - | - | - 
+
+## Examples
+
+The following command starts a simulation using the naive algortihm.
+
+```
+./N_Body_Simulation --file=<path simulation data> --dt=1h --t_end=365d --vs=1d --vs_dir=<path to output foulder> --algorithm=naive
+```
+
+The following command starts a simulation using the Barnes-Hut algorithm, specifying work-item counts for the tree creation and the theta value explicitly.
+
+```
+./N_Body_Simulation --file=<path simulation data> --dt=1h --t_end=365d --vs=1d --vs_dir=<path to output foulder> --algorithm=BarnesHut --theta=0.6 --num_wi_top_octree=640 --num_wi_octree=640
+```
+
+## References
+
+The implementation of the naive algorithm is based on the work by [Nyland et al.](https://developer.nvidia.com/gpugems/gpugems3/part-v-physics-simulation/chapter-31-fast-n-body-simulation-cuda)
+The implementation of the Barnes-Hut algorithm is based on the work by [Burtscher et al.](https://iss.oden.utexas.edu/Publications/Papers/burtscher11.pdf)
