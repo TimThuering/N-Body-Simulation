@@ -98,7 +98,7 @@ The programm has several optional and mandatory program arguments.
 | `--num_wi_top_octree` | Determines the number of work-items <br /> used to build the top of the octree | - |
 | `--num_wi_AABB` | Determines the number of work-items <br /> used to calculate the AABB | - |
 | `--num_wi_com` | Determines the number of work-items <br /> used to calculate the center of mass | - |
-| `--max_level_top_octree` | Determines the maximum level <br /> to which the top of the octree gets build | - |
+| <nobr>`--max_level_top_octree`</nobr> | Determines the maximum level <br /> to which the top of the octree gets build | - |
 | `--wg_size_barnes_hut` | Determines the work-group size of the acceleration kernel | - |
 | `--sort_bodies` | Enable / disable sorting of the bodies <br /> according to their in-order position in the<br />  octree (enabled by default) | `true` or `false`|
 | `--storage_size_param` | Scales the amount of memory for the <br /> octree data structures | Use only if you encounter problems <br />  with specific datasets |
