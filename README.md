@@ -75,6 +75,14 @@ The programm has several optional and mandatory program arguments.
 | `--vs_dir` | The top-level output directory for the output files | A separete foulder (with a time stamp) that contains all <br /> output files will be created in this directory|
 | `--algorithm` | The algorithm to use for the simulation  | Either `<naive>` or `<BarnesHut>` |
 
+### Optional programm arguments
+
+| Argument          | Description         | Notes             |
+| ----------------- | ------------------- | ----------------- |
+| `--use_gpus` | Enable / disable execution on GPUs if build for GPUs and CPUs <br />(GPU execution is enabled by default) | `true` or `false` |
+| `--energy` | Enable / disable computation of the energy of the system in each <br /> visulaized step (disabled by default). <br /> The results will be written to the ParaView files. | `true` or `false`, <br /> can result into long runtimes with large datasets|
+
+
 ### Optional arguments for the naive algorithm
 
 | Argument          | Description         | Notes             |
@@ -85,6 +93,7 @@ The programm has several optional and mandatory program arguments.
 ### Optional arguments for the Barnes-Hut algorithm
 | Argument          | Description         | Notes             |
 | ----------------- | ------------------- | ----------------- |
+| `--theta` | The theta-value which determines the <br /> accuracy of the Barnes-Hut algorithm | Smaller values like `0.2` mean worse <br />  performance but better accuracy <br /> Larger values like `1` result into better <br />  performance but worse accuracy |
 | `--num_wi_octree` | Determines the number of work-items <br /> used to build the octree | - |
 | `--num_wi_top_octree` | Determines the number of work-items <br /> used to build the top of the octree | - |
 | `--num_wi_AABB` | Determines the number of work-items <br /> used to calculate the AABB | - |
