@@ -80,6 +80,19 @@ The programm has several optional and mandatory program arguments.
 | Argument          | Description         | Notes             |
 | ----------------- | ------------------- | ----------------- |
 | `--block_size` | The size of the blocks after which the <br /> local memory is updated in the naive algorithm | Should be a power of 2, e.g., `128` |
-| `--opt_stage` | Selects the optimization stage of the naive algorithm | Possible values:<br /> <ul><li>`0` (non-optimized)</li><li>`1`</li><li>`2` (highest degree of optimization)</li></ul> |
+| `--opt_stage` | Selects the optimization stage of the naive algorithm (2 is default) | Possible values:<br /> <ul><li>`0` (non-optimized)</li><li>`1`</li><li>`2` (highest degree of optimization)</li></ul> |
+
+### Optional arguments for the Barnes-Hut algorithm
+| Argument          | Description         | Notes             |
+| ----------------- | ------------------- | ----------------- |
+| `--num_wi_octree` | Determines the number of work-items <br /> used to build the octree | - |
+| `--num_wi_top_octree` | Determines the number of work-items <br /> used to build the top of the octree | - |
+| `--num_wi_AABB` | Determines the number of work-items <br /> used to calculate the AABB | - |
+| `--num_wi_com` | Determines the number of work-items used <br /> to calculate the center of mass | - |
+| `--max_level_top_octree` | Determines the maximum level <br /> to which the top of the octree gets build | - |
+| `--wg_size_barnes_hut` | Determines the work-group size of the acceleration kernel | - |
+| `--sort_bodies` | Enable / disable sorting of the bodies according to their <br /> in-order position in the octree (enabled by default) | `true` or `false`|
+| `--storage_size_param` | Scales the amount of memory for the octree data structures | Use only if you encounter problems <br />  with specific datasets |
+| `--stack_size_param` | Scales the amount of memory for the octree data structures | Use only if you encounter problems <br /> with specific datasets  |
 
 
