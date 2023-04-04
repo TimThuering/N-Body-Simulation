@@ -44,6 +44,8 @@ If you do not wish to build the project with support for CPUs with OpenMP, delet
 
 For further details, please refer to the [Open SYCL documentation](https://github.com/OpenSYCL/OpenSYCL/blob/develop/doc/using-hipsycl.md).
 
+The project was tested with this Open SYCL [commit](https://github.com/OpenSYCL/OpenSYCL/tree/4a04f1c661b7a172ed60e92ecc35fb6c3f1de5a4).
+
 ### Building the project with DPC++
 DPC++ is supported with the CUDA backend.
 AMD GPUs are only supported with DPC++ when using the naive algorithm.
@@ -65,6 +67,8 @@ make
 
 Replace `gfxXXX` according to your AMD GPU.
 For more information, please refer to the [DPC++ documentation](https://intel.github.io/llvm-docs/GetStartedGuide.html).
+
+The project was tested with this DPC++ [commit](https://github.com/intel/llvm/tree/sycl-nightly/20221102).
 
 ## Running the program
 
