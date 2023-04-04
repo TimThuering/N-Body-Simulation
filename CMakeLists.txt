@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 option(USE_DPCPP "Use DPC++" ON)
 option(USE_OCTREE_TOP_DOWN_SYNC "Use the top-down synchronized approach without subtrees for the tree creation" OFF)
-option(ENABLE_TESTS "Enable Test" ON)
+option(ENABLE_TESTS "Enable Test" OFF)
 option(USE_DPCPP_AMD "Use the DPC++ AMD backend" OFF)
 set(DPCPP_ARCH "" CACHE STRING "Device Architecture for DPC++")
 
@@ -54,7 +54,7 @@ if(${USE_OCTREE_TOP_DOWN_SYNC})
     target_compile_definitions(N_Body_Simulation PUBLIC OCTREE_TOP_DOWN_SYNC)
 endif()
 
-# hipSYCL
+# Open SYCL
 if (NOT ${USE_DPCPP})
     find_package(hipSYCL CONFIG REQUIRED)
     find_package(OpenMP REQUIRED)
