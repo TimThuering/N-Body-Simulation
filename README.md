@@ -1,6 +1,6 @@
 # N-Body-Simulation
 
-This project was created in the course of a bachelor thesis. 
+This project was created as part of a bachelor thesis. 
 
 It contains code for n-body simulations that was used to analyze the runtime behavior of two n-body algorithms: 
 The naive approach and the Barnes-Hut alogrithm. 
@@ -16,9 +16,9 @@ Both algorithms are implemented using [SYCL](https://www.khronos.org/sycl/) and 
 ## Installation
 
 The project supports two different SYCL implementations: [Open SYCL](https://github.com/OpenSYCL/OpenSYCL) and [DPC++](https://github.com/intel/llvm).
-The project supports Linux.
+The project requires Linux.
 
-First, clone this repository and create a build directory:
+After the installation of one of the two supported SYCL implementations, clone this repository and create a build directory:
 
 ```
 git clone https://github.com/TimThuering/N-Body-Simulation.git
@@ -28,7 +28,7 @@ cd build
 ```
 
 ### Building the project with Open SYCL
-Open SYCL is supported with the CUDA, ROCm and OpenMP backend.
+Open SYCL is supported with the CUDA, ROCm and OpenMP backends.
 
 The following commands build the project with Open SYCL for CUDA and OpenMP.
 Replace `sm_XX` with the [compute capability](https://developer.nvidia.com/cuda-gpus) of your GPU, e.g., `sm_75`.
@@ -85,8 +85,8 @@ The programm has several optional and mandatory program arguments.
 
 | Argument          | Description         | Notes             |
 | ----------------- | ------------------- | ----------------- |
-| `--use_gpus` | Enable / disable execution on GPUs if build for GPUs and CPUs <br />(GPU execution is enabled by default) | `true` or `false` |
-| `--energy` | Enable / disable computation of the energy of the system in each <br /> visulaized step (disabled by default). <br /> The results will be written to the ParaView files. | `true` or `false`, <br /> can result into long runtimes with large datasets|
+| `--use_gpus` | Enable / disable execution on GPUs <br />(GPU execution is enabled by default) | `true` or `false` |
+| `--energy` | Enable / disable computation of the energy of the system in each <br /> visualized step (disabled by default). <br /> The results will be written to the ParaView files. | `true` or `false`, <br /> can result into long runtimes with large datasets|
 
 
 ### Optional arguments for the naive algorithm
@@ -116,7 +116,7 @@ The programm has several optional and mandatory program arguments.
 | ----------------- | ------------------- | ----------------- |
 | `-DUSE_DPCPP` | Enable / disable the usage of DPC++ | `ON` (Default) or `OFF` |
 | `-DUSE_OCTREE_TOP_DOWN_SYNC`| Use the top-down synchronized approach without subtrees for the tree creation | Default `OFF`|
-| `-DENABLE_TESTS` | Enable building of test | Only supported with DPC++ |
+| `-DENABLE_TESTS` | Enable building of tests | Only supported with DPC++ |
 | `-DUSE_DPCPP_AMD` | Use DPC++ with AMD GPUs | - |
 | `DPCPP_ARCH` | Specify the GPU architecture for DPC++ when using AMD GPUs| Not recomended when using NVIDIA GPUs|
 
@@ -135,13 +135,13 @@ Use a `,` as separator. The unit of length has to be an astronomical unit.
 The following command starts a simulation using the naive algortihm.
 
 ```
-./N_Body_Simulation --file=<path simulation data> --dt=1h --t_end=365d --vs=1d --vs_dir=<path to output foulder> --algorithm=naive
+./N_Body_Simulation --file=<path to simulation data> --dt=1h --t_end=365d --vs=1d --vs_dir=<path to output directory> --algorithm=naive
 ```
 
 The following command starts a simulation using the Barnes-Hut algorithm, specifying work-item counts for the tree creation and the theta value explicitly.
 
 ```
-./N_Body_Simulation --file=<path simulation data> --dt=1h --t_end=365d --vs=1d --vs_dir=<path to output foulder> --algorithm=BarnesHut --theta=0.6 --num_wi_top_octree=640 --num_wi_octree=640
+./N_Body_Simulation --file=<path to simulation data> --dt=1h --t_end=365d --vs=1d --vs_dir=<path to output directory> --algorithm=BarnesHut --theta=0.6 --num_wi_top_octree=640 --num_wi_octree=640
 ```
 
 ## References
