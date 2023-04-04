@@ -126,7 +126,7 @@ The programm has several optional and mandatory program arguments.
 
 ## Input data format
 
-The input data for the simulation has to contain information of all bodies of the system.
+The input data for the simulation has to contain information about all bodies of the system.
 The columns of the .csv file have to contain the follwing information about each body, starting in the second line:
 
 | id | name of body | name for class of body | mass of body in kg | x position | y position | z position | x velocity | y velocity | z velocity |
