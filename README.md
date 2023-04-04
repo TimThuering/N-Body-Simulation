@@ -18,8 +18,6 @@ Both algorithms are implemented using [SYCL](https://www.khronos.org/sycl/) and 
 The project supports two different SYCL implementations: [Open SYCL](https://github.com/OpenSYCL/OpenSYCL) and [DPC++](https://github.com/intel/llvm).
 The project supports Linux.
 
-### Building the project with Open SYCL
-
 First, clone this repository and create a build directory:
 
 ```
@@ -28,6 +26,9 @@ cd N-Body-Simulation
 mkdir build
 cd build
 ```
+
+### Building the project with Open SYCL
+Open SYCL is supported with the CUDA, ROCm and OpenMP backend.
 
 The following commands build the project with Open SYCL for CUDA and OpenMP.
 Replace `sm_XX` with the [compute capability](https://developer.nvidia.com/cuda-gpus) of your GPU, e.g., `sm_75`.
@@ -44,6 +45,8 @@ If you do not wish to build the project with support for CPUs with OpenMP, delet
 For further details, please refer to the [Open SYCL documentation](https://github.com/OpenSYCL/OpenSYCL/blob/develop/doc/using-hipsycl.md).
 
 ### Building the project with DPC++
+DPC++ is supported with the CUDA backend.
+AMD GPUs are only supported with DPC++ when using the naive algorithm.
 
 The following commands build the project with DPC++ for CUDA.
 
