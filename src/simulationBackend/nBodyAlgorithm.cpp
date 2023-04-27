@@ -137,7 +137,7 @@ void nBodyAlgorithm::generateParaViewOutput(const SimulationData &simulationData
     std::string filePathBase = outputDirectory + '/' + time + '/';
 
     // create the directory for the output files
-    std::filesystem::create_directory(filePathBase);
+    std::filesystem::create_directories(filePathBase);
 
     // export the all timings as json file
     timer.exportJSON(filePathBase + "times.json");
