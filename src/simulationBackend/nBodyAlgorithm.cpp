@@ -45,14 +45,14 @@ void nBodyAlgorithm::computeEnergy(queue &queue, buffer<double> &masses, d_type:
 
 
         // parallel computation for kinetic and potential energy.
-        h.parallel_for(sycl::range<1>(configuration::numberOfBodies), [=](auto &j) {
+        h.parallel_for(sycl::range<1>(configuration::numberOfBodies), [=](sycl::id<1> j) {
             double v = V_X[j] * V_X[j] +
                        V_Y[j] * V_Y[j] +
                        V_Z[j] * V_Z[j];
             E_KIN[j] = 0.5 * M[j] * v;
             E_POT[j] = 0;
 
-            for (int i = 0; i < j; ++i) {
+            for (int i = 0; i < j.get(0); ++i) {
                 double r_x = P_X[j] - P_X[i];
                 double r_y = P_Y[j] - P_Y[i];
                 double r_z = P_Z[j] - P_Z[i];

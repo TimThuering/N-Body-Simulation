@@ -88,9 +88,9 @@ void BarnesHutOctree::computeMinMaxValuesAABB(queue &queue, buffer<double> &curr
         accessor<double> MAX_Z(localMax_Z, h);
 
 
-        h.parallel_for(sycl::range<1>(threadCount), [=](auto &idx) {
+        h.parallel_for(sycl::range<1>(threadCount), [=](sycl::id<1> idx) {
 
-            for (int i = bodiesPerThread * idx; i < bodiesPerThread * idx + bodiesPerThread; ++i) {
+            for (int i = bodiesPerThread * idx.get(0); i < bodiesPerThread * idx.get(0) + bodiesPerThread; ++i) {
                 if (i < N) {
                     double current_x = POS_X[i];
                     double current_y = POS_Y[i];
@@ -566,7 +566,7 @@ void BarnesHutOctree::sortBodies(queue &queue, buffer<double> &current_positions
         accessor<d_type::int_t> SORTED_BODIES(sortedBodiesInOrder, h);
 
 
-        h.parallel_for(sycl::range<1>(configuration::numberOfBodies), [=](auto &i) {
+        h.parallel_for(sycl::range<1>(configuration::numberOfBodies), [=](sycl::id<1> i) {
             d_type::int_t insertionIndex = 0;
             d_type::int_t currentNode = 0;
             bool indexDetermined = false;
@@ -606,7 +606,7 @@ void BarnesHutOctree::sortBodies(queue &queue, buffer<double> &current_positions
                     currentNode = octantID;
                 }
             }
-            SORTED_BODIES[insertionIndex] = i;
+            SORTED_BODIES[insertionIndex] = i.get(0);
         });
     }).wait();
 
