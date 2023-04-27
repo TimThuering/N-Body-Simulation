@@ -215,7 +215,7 @@ void BarnesHutAlgorithm::startSimulation(const SimulationData &simulationData) {
                                 std::chrono::duration<double, std::milli>(end - beginAccelerationKernel).count());
         timer.addTimeToSequence("Total Time", std::chrono::duration<double, std::milli>(end - begin).count());
 
-        std::cout << std::endl;
+        //std::cout << std::endl;
 
 
         auto beginLF2 = std::chrono::steady_clock::now();
@@ -395,7 +395,7 @@ void BarnesHutAlgorithm::computeAccelerations(queue &queue, buffer<double> &mass
 
 
     auto end = std::chrono::steady_clock::now();
-    std::cout << "Acceleration computation: " << std::chrono::duration<double, std::milli>(end - begin).count() << "ms"
-              << std::endl;
+    //std::cout << "Acceleration computation: " << std::chrono::duration<double, std::milli>(end - begin).count() << "ms"
+    //          << std::endl;
 
 }
