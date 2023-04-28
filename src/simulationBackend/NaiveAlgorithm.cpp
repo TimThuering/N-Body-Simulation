@@ -355,8 +355,8 @@ void NaiveAlgorithm::computeAccelerations_opt_2(queue &queue, buffer<double> &ma
 
     auto end = std::chrono::steady_clock::now();
 
-    std::cout << "Acceleration computation: "
-              << std::chrono::duration<double, std::milli>(end - begin).count() << "ms" << std::endl;
+    //std::cout << "Acceleration computation: "
+    //          << std::chrono::duration<double, std::milli>(end - begin).count() << "ms" << std::endl;
 }
 
 void
@@ -412,8 +412,8 @@ NaiveAlgorithm::computeAccelerations_opt_0(queue &queue, buffer<double> &masses,
     }).wait();
     auto end = std::chrono::steady_clock::now();
 
-    std::cout << "Acceleration computation: "
-              << std::chrono::duration<double, std::milli>(end - begin).count() << "ms" << std::endl;
+    //std::cout << "Acceleration computation: "
+    //          << std::chrono::duration<double, std::milli>(end - begin).count() << "ms" << std::endl;
 }
 
 void
@@ -477,6 +477,6 @@ NaiveAlgorithm::computeAccelerations_opt_1(queue &queue, buffer<double> &masses,
     }).wait();
     auto end = std::chrono::steady_clock::now();
 
-    std::cout << "Acceleration computation: "
-              << std::chrono::duration<double, std::milli>(end - begin).count() << std::endl;
+    //std::cout << "Acceleration computation: "
+    //          << std::chrono::duration<double, std::milli>(end - begin).count() << std::endl;
 }

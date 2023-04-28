@@ -371,8 +371,8 @@ void ParallelOctreeTopDownSynchronized::buildOctree(queue &queue, buffer<double>
     }
 
     auto end = std::chrono::steady_clock::now();
-    std::cout << "Octree creation: " << std::chrono::duration<double, std::milli>(end - begin).count()  << "ms"
-              << std::endl;
+    //std::cout << "Octree creation: " << std::chrono::duration<double, std::milli>(end - begin).count()  << "ms"
+    //          << std::endl;
 
     timer.addTimeToSequence("AABB creation",
                             std::chrono::duration<double, std::milli>(endAABB_creation - begin).count());

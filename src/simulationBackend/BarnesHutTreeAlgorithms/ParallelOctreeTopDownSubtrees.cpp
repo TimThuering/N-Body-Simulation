@@ -69,8 +69,8 @@ void ParallelOctreeTopDownSubtrees::buildOctree(queue &queue, buffer<double> &cu
     }
 
     auto end = std::chrono::steady_clock::now();
-    std::cout << "Octree creation: "
-              << std::chrono::duration<double, std::milli>(end - begin).count() << "ms" << std::endl;
+    //std::cout << "Octree creation: "
+    //          << std::chrono::duration<double, std::milli>(end - begin).count() << "ms" << std::endl;
 
 
     timer.addTimeToSequence("AABB creation",
@@ -488,11 +488,11 @@ void ParallelOctreeTopDownSubtrees::sortBodiesForSubtrees(queue &queue, buffer<d
         accessor<d_type::int_t> START_INDEX(bodiesOfSubtreeStartIndex, h);
         accessor<d_type::int_t> NEXT_POSITIONS(nextPositions, h);
 
-        h.parallel_for(sycl::range<1>(numberOfSubtrees), [=](auto &i) {
+        h.parallel_for(sycl::range<1>(numberOfSubtrees), [=](sycl::id<1> i) {
             // determine first index, i.e. the total amount of bodies in all subtrees that will get stored at indices
             // before the bodies of this subtree. These are the bodies of all subtrees with a subtree index lower than i.
             d_type::int_t firstIndex = 0;
-            for (int j = i - 1; j >= 0; j--) {
+            for (int j = i.get(0) - 1; j >= 0; j--) {
                 firstIndex += BODY_COUNT_SUBTREE[SUBTREES[j]];
             }
             START_INDEX[i] = firstIndex;
@@ -509,7 +509,7 @@ void ParallelOctreeTopDownSubtrees::sortBodiesForSubtrees(queue &queue, buffer<d
 
         // iterate over all bodies and determine the subtree of each body. After that insert the body at the next free position
         // of the storage space that got allocated for this subtree.
-        h.parallel_for(sycl::range<1>(numberOfBodies), [=](auto &i) {
+        h.parallel_for(sycl::range<1>(numberOfBodies), [=](sycl::id<1> i) {
             d_type::int_t subtreeOfCurrentBody = SUBTREE_OF_BODY[i]; // root node of subtree
 
             // find out index of subtree represented by the subtree root node
@@ -527,7 +527,7 @@ void ParallelOctreeTopDownSubtrees::sortBodiesForSubtrees(queue &queue, buffer<d
                         access::address_space::global_space> atomicNextPositionAccessor(NEXT_POSITIONS[subtreeIndex]);
                 d_type::int_t incr = 1;
                 d_type::int_t insertionIndex = atomicNextPositionAccessor.fetch_add(incr);
-                SORTED_BODIES[insertionIndex] = i;
+                SORTED_BODIES[insertionIndex] = i.get(0);
             }
         });
     }).wait();
