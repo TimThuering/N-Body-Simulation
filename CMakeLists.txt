@@ -116,4 +116,5 @@ add_dependencies(N_Body_Simulation cxxopts)
 target_include_directories(N_Body_Simulation PUBLIC ${cxxopts_SOURCE_DIR}/include)
 
 
-
+# compile the data converter
+add_subdirectory(dataset_converter)

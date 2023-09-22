@@ -1,10 +1,5 @@
-cmake-build-debug/
-cmake-build-debug-dpc/
-cmake-build-debug-hipsycl/
-cmake-build-release/
-cmake-build-release-dpc/
-cmake-build-release-hipsycl/
-cmake-build-open-sycl/
+cmake-build-*/
 .idea/
 data/
+!dataset_converter/data
 output/
