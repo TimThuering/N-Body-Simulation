@@ -134,6 +134,8 @@ The columns of the .csv file have to contain the follwing information about each
 
 Use a `,` as separator. The unit of length has to be an astronomical unit.
 
+The [dataset converter](https://github.com/TimThuering/N-Body-Simulation/tree/main/dataset_converter) can be used to generate datasets of this format.
+
 ## Examples
 
 The following command starts a simulation using the naive algortihm.
