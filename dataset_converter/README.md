@@ -67,7 +67,7 @@ our preprocessing utility approximates masses according to the following scheme:
 4. mass: finally, approximate the mass assuming a spherical shape: m = 4/3 Pi * (d/2)^3 * p
 
 Two things have to be noted:
-1. The already provided `data/planets_and_moons.csv` dataset contains hand-provided data for the planets, dwarf, planets, and named moons in Keplerian orbital elements.
+1. The already provided `data/planets_and_moons.csv` dataset contains hand-provided data (collected from various sources, e.g., NASA's website amongst others) for the planets, dwarf, planets, and named moons in Keplerian orbital elements.
    Note that this file contains an additional column called `central_body` listing the body around which the specific body orbits. This isn't necessary for the JPL data
    since by definition all asteroids orbit the Sun.
 2. The Sun isn't present in any Keplerian orbital element data since it is impossible to specify its Keplerian orbital elements with respect to itself. 
