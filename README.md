@@ -1,6 +1,6 @@
 # N-Body-Simulation
 
-This project was created as part of a bachelor thesis. 
+This project started as part of a bachelor thesis. 
 
 It contains code for n-body simulations that was used to analyze the runtime behavior of two n-body algorithms: 
 The naive approach and the Barnes-Hut alogrithm. 
@@ -15,7 +15,7 @@ Both algorithms are implemented using [SYCL](https://www.khronos.org/sycl/) and 
 
 ## Installation
 
-The project supports two different SYCL implementations: [Open SYCL](https://github.com/OpenSYCL/OpenSYCL) and [DPC++](https://github.com/intel/llvm).
+The project supports two different SYCL implementations: [AdaptiveCpp](https://github.com/AdaptiveCpp/AdaptiveCpp) and [DPC++](https://github.com/intel/llvm).
 The project requires Linux.
 
 After the installation of one of the two supported SYCL implementations, clone this repository and create a build directory:
@@ -27,10 +27,10 @@ mkdir build
 cd build
 ```
 
-### Building the project with Open SYCL
-Open SYCL is supported with the CUDA, ROCm and OpenMP backends.
+### Building the project with AdaptiveCpp
+AdaptiveCpp is supported with the CUDA, ROCm and OpenMP backends.
 
-The following commands build the project with Open SYCL for CUDA and OpenMP.
+The following commands build the project with AdaptiveCpp for CUDA and OpenMP.
 Replace `sm_XX` with the [compute capability](https://developer.nvidia.com/cuda-gpus) of your GPU, e.g., `sm_75`.
 
 ```
@@ -42,9 +42,9 @@ To build the project for AMD GPUs, replace `cuda:sm_XX` with `hip:gfxXXX` and re
 
 If you do not wish to build the project with support for CPUs with OpenMP, delete `;omp.accelerated`.
 
-For further details, please refer to the [Open SYCL documentation](https://github.com/OpenSYCL/OpenSYCL/blob/develop/doc/using-hipsycl.md).
+For further details, please refer to the [AdaptiveCpp documentation](https://github.com/AdaptiveCpp/AdaptiveCpp/blob/develop/doc/using-hipsycl.md).
 
-The project was tested with this Open SYCL [commit](https://github.com/OpenSYCL/OpenSYCL/tree/4a04f1c661b7a172ed60e92ecc35fb6c3f1de5a4).
+The project was tested with this AdaptiveCpp [commit](https://github.com/AdaptiveCpp/AdaptiveCpp/tree/4a04f1c661b7a172ed60e92ecc35fb6c3f1de5a4).
 
 ### Building the project with DPC++
 DPC++ is supported with the CUDA backend.
