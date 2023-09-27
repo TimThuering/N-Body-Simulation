@@ -2,15 +2,15 @@
 
 This project started as part of a bachelor thesis. 
 
-It contains code for n-body simulations that was used to analyze the runtime behavior of two n-body algorithms: 
-The naive approach and the Barnes-Hut alogrithm. 
+It contains code for n-body simulations that were used to analyze the runtime behavior of two widely known n-body algorithms: 
+the naive approach and the Barnes-Hut algorithm. 
 
 Both algorithms are implemented using [SYCL](https://www.khronos.org/sycl/) and can be executed in parallel on GPUs and CPUs. 
 
 ## Features
 - Parallel SYCL implementation of the naive algorithm 
 - Parallel SYCL implementation of the Barnes-Hut algorithm
-- Support for CPUs as well as GPUs from NVIDIA and AMD
+- Support for CPUs as well as GPUs from NVIDIA and AMD (not tested on Intel GPUs)
 - ParaView output for visualization
 
 ## Installation
@@ -28,7 +28,8 @@ cd build
 ```
 
 ### Building the project with AdaptiveCpp
-AdaptiveCpp is supported with the CUDA, ROCm and OpenMP backends.
+AdaptiveCpp is supported with the CUDA, ROCm, and OpenMP backends.
+Note that since we use `sycl::nd_range`s, AdaptiveCpp should be built with the `omp.accelerated` target enabled in order to achieve acceptable performance on CPUs.
 
 The following commands build the project with AdaptiveCpp for CUDA and OpenMP.
 Replace `sm_XX` with the [compute capability](https://developer.nvidia.com/cuda-gpus) of your GPU, e.g., `sm_75`.
@@ -45,6 +46,8 @@ If you do not wish to build the project with support for CPUs with OpenMP, delet
 For further details, please refer to the [AdaptiveCpp documentation](https://github.com/AdaptiveCpp/AdaptiveCpp/blob/develop/doc/using-hipsycl.md).
 
 The project was tested with this AdaptiveCpp [commit](https://github.com/AdaptiveCpp/AdaptiveCpp/tree/4a04f1c661b7a172ed60e92ecc35fb6c3f1de5a4).
+
+Note: using AdaptiveCpp's new `generic` target **may** work, but hasn't been tested.
 
 ### Building the project with DPC++
 DPC++ is supported with the CUDA backend.
@@ -72,7 +75,7 @@ The project was tested with this DPC++ [commit](https://github.com/intel/llvm/tr
 
 ## Running the program
 
-The programm has several optional and mandatory program arguments.
+The program has several optional and mandatory program arguments.
 
 ### Mandatory program arguments
 
@@ -82,10 +85,10 @@ The programm has several optional and mandatory program arguments.
 | `--dt` | Width of the time step for the simulation  | E.g.: `1h` for one hour |
 | `--t_end` | The internal time until the system will be simulated | E.g.: `365d` for  365 days or `12y` for twelve years |
 | `--vs` | The time step width of the visualization  | E.g.: `1d` to visualize every day |
-| `--vs_dir` | The top-level output directory for the output files | A separate foulder (with a time stamp) that <br /> contains all output files will be created in this directory|
+| `--vs_dir` | The top-level output directory for the output files | A separate folder (with a timestamp) that <br /> contains all output files will be created in this directory|
 | `--algorithm` | The algorithm to use for the simulation  | Either `<naive>` or `<BarnesHut>` |
 
-### Optional programm arguments
+### Optional program arguments
 
 | Argument          | Description         | Notes             |
 | ----------------- | ------------------- | ----------------- |
@@ -98,7 +101,7 @@ The programm has several optional and mandatory program arguments.
 | Argument          | Description         | Notes             |
 | ----------------- | ------------------- | ----------------- |
 | `--block_size` | The size of the blocks after which the <br /> local memory is updated in the naive algorithm | Should be a power of 2, e.g., `128` |
-| `--opt_stage` | Selects the optimization stage of the naive algorithm (2 is default) | Possible values:<br /> <ul><li>`0` (non-optimized)</li><li>`1`</li><li>`2` (highest degree of optimization)</li></ul> |
+| `--opt_stage` | Selects the optimization stage of the naive algorithm (default: `2`) | Possible values:<br /> <ul><li>`0` (non-optimized)</li><li>`1`</li><li>`2` (highest degree of optimization)</li></ul> |
 
 ### Optional arguments for the Barnes-Hut algorithm
 | Argument          | Description         | Notes             |
@@ -122,23 +125,23 @@ The programm has several optional and mandatory program arguments.
 | `-DUSE_OCTREE_TOP_DOWN_SYNC`| Use the top-down synchronized approach without subtrees for the tree creation | Default `OFF`|
 | `-DENABLE_TESTS` | Enable building of tests | Only supported with DPC++ |
 | `-DUSE_DPCPP_AMD` | Use DPC++ with AMD GPUs | - |
-| `DPCPP_ARCH` | Specify the GPU architecture for DPC++ when using AMD GPUs| Not recomended when using NVIDIA GPUs|
+| `-DDPCPP_ARCH` | Specify the GPU architecture for DPC++ when using AMD GPUs| Not recommended when using NVIDIA GPUs|
 
 ## Input data format
 
 The input data for the simulation has to contain information about all bodies of the system.
-The columns of the .csv file have to contain the follwing information about each body, starting in the second line:
+The columns of the .csv file have to contain the following information about each body, starting in the second line:
 
 | id | name of body | name for class of body | mass of body in kg | x position | y position | z position | x velocity | y velocity | z velocity |
 | - | - | - | - | - | - | - | - | - | - |
 
-Use a `,` as separator. The unit of length has to be an astronomical unit.
+Use a `,` as the separator. The unit of length has to be the astronomical unit (AU).
 
-The [dataset converter](https://github.com/TimThuering/N-Body-Simulation/tree/main/dataset_converter) can be used to generate datasets of this format.
+The [dataset converter](https://github.com/TimThuering/N-Body-Simulation/tree/main/dataset_converter) can be used to generate datasets in this format.
 
 ## Examples
 
-The following command starts a simulation using the naive algortihm.
+The following command starts a simulation using the naive algorithm.
 
 ```
 ./N_Body_Simulation --file=<path to simulation data> --dt=1h --t_end=365d --vs=1d --vs_dir=<path to output directory> --algorithm=naive
